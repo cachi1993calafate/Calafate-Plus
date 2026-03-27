@@ -6,6 +6,7 @@ import L from "leaflet";
 import { Download, X, LogOut, MapPin, MessageCircle, User, Store, Camera, Save } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
+// Icono para el mapa
 const iconBiz = L.icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
@@ -26,7 +27,7 @@ export default function CalafatePlus() {
   const [formData, setFormData] = useState({ name: "", phone: "", offer_es: "", discount_short: "10%", image_url: "", lat: -50.34, lng: -72.27 });
 
   useEffect(() => {
-    // 1. Verificar si ya hay una sesión guardada (Autologin)
+    // 1. Autologin: Verificar si ya hay sesión
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user.email === ADMIN_EMAIL) setView("admin");
@@ -36,7 +37,10 @@ export default function CalafatePlus() {
 
     if (view === "scanner") {
       const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
-      scanner.render((text) => { window.location.href = text; scanner.clear(); }, () => {});
+      scanner.render((text) => {
+        window.location.href = text; // Redirigir a la URL del QR
+        scanner.clear();
+      }, () => {});
       return () => scanner.clear();
     }
   }, [view]);
@@ -46,16 +50,16 @@ export default function CalafatePlus() {
     if (data) setBusinesses(data);
   };
 
+  const cleanPhone = (phone: string) => {
+    let num = phone.replace(/\D/g, ''); 
+    if (!num.startsWith('549')) num = '549' + num; 
+    return num;
+  };
+
   const handleLogin = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) alert("Error: " + error.message);
     else { setSession(data.session); setView("admin"); }
-  };
-
-  const handleSignUp = async () => {
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
-    if (error) alert("Error al crear: " + error.message);
-    else alert("¡Cuenta creada! Ahora dale a ENTRAR.");
   };
 
   const handleLogout = async () => {
@@ -64,29 +68,26 @@ export default function CalafatePlus() {
     setView("user");
   };
 
+  // --- VISTA ADMIN ( PANEL DE CACHI ) ---
   if (view === "admin" || (session?.user.email === ADMIN_EMAIL && view !== "scanner")) {
     return (
       <div style={{ padding: "15px", background: "#f0f2f5", minHeight: "100vh", color: "#333", paddingBottom: "100px" }}>
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{margin:0}}>Panel Cachi 🏔️</h2>
+          <h2 style={{margin:0}}>Mi Panel 🏔️</h2>
           <button onClick={handleLogout} style={{ background: "#ff4757", color: "#fff", border: "none", padding: "10px 15px", borderRadius: "10px", fontWeight: "bold" }}>SALIR</button>
         </header>
-        
-        <p>Bienvenido, tenés {businesses.length} locales activos.</p>
-        
+        <p>Estás gestionando {businesses.length} comercios.</p>
         {businesses.map(b => (
           <div key={b.id} style={{ background: "#fff", padding: "12px", borderRadius: "12px", marginBottom: "10px", border: "1px solid #ddd", display: "flex", justifyContent: "space-between" }}>
             <b>{b.name}</b> <span>{b.discount_short}</span>
           </div>
         ))}
-
-        <button onClick={() => setShowForm(true)} style={{ position: "fixed", bottom: "30px", left: "50%", transform: "translateX(-50%)", background: "#011627", color: "#fff", border: "none", padding: "20px 40px", borderRadius: "50px", fontWeight: "bold", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", zIndex: 100 }}>+ NUEVO COMERCIO</button>
-
+        <button onClick={() => setShowForm(true)} style={{ position: "fixed", bottom: "30px", left: "50%", transform: "translateX(-50%)", background: "#011627", color: "#fff", border: "none", padding: "20px 40px", borderRadius: "50px", fontWeight: "bold", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", zIndex: 100 }}>+ AGREGAR COMERCIO</button>
         {showForm && (
           <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, padding: "20px", overflowY: "auto", color: "#000" }}>
             <div style={{display:"flex", justifyContent:"space-between"}}><h2>Cargar Datos</h2><X onClick={()=>setShowForm(false)} size={30}/></div>
             <input placeholder="Nombre del local" onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
-            <input placeholder="WhatsApp (2966...)" onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
+            <input placeholder="WhatsApp (Ej: 2966123456)" onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
             <input placeholder="Descuento (ej: 15% OFF)" onChange={e => setFormData({...formData, discount_short: e.target.value})} style={inputStyle} />
             <textarea placeholder="Descripción del beneficio" onChange={e => setFormData({...formData, offer_es: e.target.value})} style={{...inputStyle, height: "80px"}} />
             <input placeholder="URL de la Foto" onChange={e => setFormData({...formData, image_url: e.target.value})} style={inputStyle} />
@@ -98,37 +99,44 @@ export default function CalafatePlus() {
     );
   }
 
+  // --- VISTA ESCÁNER QR ---
   if (view === "scanner") {
     return (
       <div style={{ minHeight: "100vh", background: "#000", color: "#fff", padding: "20px", textAlign: "center" }}>
         <h2 style={{marginBottom:"20px"}}>Escaneá el QR</h2>
         <div id="reader" style={{ width: "100%", borderRadius: "20px", overflow: "hidden" }}></div>
-        <button onClick={() => setView("user")} style={{ marginTop: "30px", background: "#4A90D9", border: "none", color: "#fff", padding: "15px 40px", borderRadius: "12px" }}>VOLVER</button>
+        <button onClick={() => setView("user")} style={{ marginTop: "30px", background: "#e74c3c", border: "none", color: "#fff", padding: "15px 40px", borderRadius: "12px", fontWeight:"bold" }}>CERRAR CÁMARA</button>
       </div>
     );
   }
 
+  // --- VISTA PÚBLICA (TURISTA) ---
   return (
     <div style={{ minHeight: "100vh", background: "#011627", color: "#fff", fontFamily: 'sans-serif' }}>
       
+      {/* BARRA SUPERIOR */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 20px" }}>
         <div style={{ color: "#FFD700", fontWeight: "900" }}>FULL DESCUENTOS</div>
-        <button onClick={() => setView("login")} style={{ background: "rgba(74,144,217,0.2)", color: "#4A90D9", border: "1px solid #4A90D9", padding: "6px 15px", borderRadius: "20px", fontSize: "12px" }}>
-          LOGIN ADMIN
+        <button onClick={() => setView("login")} style={{ background: "rgba(74,144,217,0.2)", color: "#4A90D9", border: "1px solid #4A90D9", padding: "6px 15px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>
+          INGRESAR
         </button>
       </div>
 
       <header style={{ padding: "30px 20px", textAlign: "center" }}>
         <h1 style={{ margin: 0, fontSize: "40px", fontWeight: "900" }}>CALAFATE<br/><span style={{color: "#FFD700"}}>PLUS</span></h1>
+        <p style={{ color: "#4A90D9", marginTop: "10px", fontSize: "14px", fontWeight: "bold" }}>FULL DESCUENTOS EN LA CIUDAD</p>
       </header>
 
+      {/* BANNER COMERCIAL */}
       <div style={{ margin: "15px", background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)", borderRadius: "25px", padding: "25px", textAlign: "center", color: "#000" }}>
         <h2 style={{ margin: "0", fontSize: "24px", fontWeight: "900" }}>¿QUERÉS VENDER MÁS?</h2>
-        <button onClick={() => window.open(`https://wa.me/${MI_WHATSAPP}`)} style={{ background: "#000", color: "#fff", border: "none", padding: "12px 30px", borderRadius: "12px", fontWeight: "bold", marginTop: "15px" }}>CONTACTARME</button>
+        <p style={{ margin: "10px 0 15px 0" }}>Sumá tu comercio a la red de descuentos.</p>
+        <button onClick={() => window.open(`https://wa.me/${MI_WHATSAPP}`)} style={{ background: "#000", color: "#fff", border: "none", padding: "12px 30px", borderRadius: "12px", fontWeight: "bold" }}>¡ASOCIARME!</button>
       </div>
 
+      {/* BOTÓN FLOTANTE QR */}
       <div style={{ textAlign: "center", marginBottom: "30px" }}>
-        <button onClick={() => setView("scanner")} style={{ background: "#fff", color: "#011627", border: "none", padding: "15px 35px", borderRadius: "50px", fontWeight: "900", display: "inline-flex", alignItems: "center", gap: "10px" }}>
+        <button onClick={() => setView("scanner")} style={{ background: "#fff", color: "#011627", border: "none", padding: "18px 35px", borderRadius: "50px", fontWeight: "900", display: "inline-flex", alignItems: "center", gap: "10px", boxShadow: "0 5px 20px rgba(255,255,255,0.2)" }}>
           <Camera size={24}/> ESCANEAR QR
         </button>
       </div>
@@ -137,32 +145,31 @@ export default function CalafatePlus() {
         {businesses.map(biz => (
           <div key={biz.id} style={{ background: "rgba(255,255,255,0.05)", borderRadius: "25px", marginBottom: "25px", border: "1px solid rgba(74,144,217,0.2)", overflow: "hidden", position: "relative" }}>
             <div style={{ position: "absolute", top: "15px", right: "15px", background: "#e74c3c", color: "#fff", padding: "10px 15px", borderRadius: "50px", fontWeight: "900", fontSize: "20px" }}>{biz.discount_short}</div>
-            {biz.image_url && <img src={biz.image_url} alt={biz.name} style={{ width: "100%", height: "200px", objectFit: "cover" }} />}
+            {biz.image_url ? (
+              <img src={biz.image_url} alt={biz.name} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: "100%", height: "120px", background: "#022b4d", display: "flex", justifyContent: "center", alignItems: "center" }}><Store size={40} color="#4A90D9" /></div>
+            )}
             <div style={{ padding: "20px" }}>
               <h3 style={{ margin: "0", fontSize: "24px" }}>{biz.name}</h3>
               <p style={{ color: "#bbb", margin: "10px 0 20px 0" }}>{biz.offer_es}</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "900" }}>MAPA</button>
-                <button onClick={() => window.open(`https://wa.me/${biz.phone.replace(/\D/g, '')}`)} style={{ background: "#25D366", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "900" }}>WHATSAPP</button>
+                <button onClick={() => window.open(`https://wa.me/${cleanPhone(biz.phone)}`)} style={{ background: "#25D366", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "900" }}>WHATSAPP</button>
               </div>
             </div>
           </div>
         ))}
       </main>
 
+      {/* LOGIN MODAL */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#011627", zIndex: 9999, padding: "40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <h2 style={{textAlign: "center", marginBottom: "20px"}}>Acceso Maestro</h2>
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-          <input type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)} style={inputStyle} />
-          <button onClick={handleLogin} style={{ width: "100%", padding: "15px", background: "#25D366", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold", marginBottom: "10px" }}>ENTRAR</button>
-          
-          <div style={{ borderTop: "1px solid #333", paddingTop: "20px", marginTop: "10px" }}>
-            <p style={{fontSize: "12px", textAlign: "center", color: "#666"}}>¿Sos Cachi y no tenés cuenta?</p>
-            <button onClick={handleSignUp} style={{ width: "100%", padding: "10px", background: "none", color: "#4A90D9", border: "1px solid #4A90D9", borderRadius: "12px", fontSize: "12px" }}>CREAR MI CUENTA ADMIN</button>
-          </div>
-          
-          <button onClick={() => setView("user")} style={{ marginTop: "30px", color: "#fff", background: "none", border: "none", opacity: 0.5 }}>VOLVER ATRÁS</button>
+          <input type="password" placeholder="Clave" value={pass} onChange={e => setPass(e.target.value)} style={inputStyle} />
+          <button onClick={handleLogin} style={{ width: "100%", padding: "15px", background: "#4A90D9", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "bold" }}>ENTRAR</button>
+          <button onClick={() => setView("user")} style={{ marginTop: "20px", color: "#fff", background: "none", border: "none", opacity: 0.5 }}>Cerrar</button>
         </div>
       )}
     </div>
