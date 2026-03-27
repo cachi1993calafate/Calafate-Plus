@@ -1,271 +1,107 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
-// ============================================================
-// TRADUCCIONES (Idiomas para turistas)
-// ============================================================
-const translations: any = {
-  es: {
-    appName: "Calafate Plus",
-    tagline: "Tu guía de beneficios",
-    categories: {
-      all: "Todos",
-      gastronomy: "Gastronomía",
-      entrepreneurs: "Emprendimientos",
-      services: "Servicios",
-    },
-    viewCoupon: "Acceder al Cupón",
-    location: "Ubicación",
-    contact: "WhatsApp",
-    scanQR: "Escaneá el QR del local",
-    close: "Cerrar",
-  },
-  en: {
-    appName: "Calafate Plus",
-    tagline: "Your benefits guide",
-    categories: {
-      all: "All",
-      gastronomy: "Gastronomy",
-      entrepreneurs: "Entrepreneurs",
-      services: "Services",
-    },
-    viewCoupon: "Get Coupon",
-    location: "Location",
-    contact: "WhatsApp",
-    scanQR: "Scan the store QR code",
-    close: "Close",
-  },
-  pt: {
-    appName: "Calafate Plus",
-    tagline: "Seu guia de benefícios",
-    categories: {
-      all: "Todos",
-      gastronomy: "Gastronomia",
-      entrepreneurs: "Empreendimentos",
-      services: "Serviços",
-    },
-    viewCoupon: "Ver Cupom",
-    location: "Localização",
-    contact: "WhatsApp",
-    scanQR: "Escaneie o QR da loja",
-    close: "Fechar",
-  },
+const T: any = {
+  es: { appName: "Calafate Plus", tagline: "Tu guía de beneficios en El Calafate", all: "Todos", gastronomy: "Gastronomía", experiences: "Experiencias", shopping: "Compras", services: "Servicios", viewCoupon: "Ver Cupón", location: "Cómo llegar", contact: "WhatsApp", scanQR: "Escaneá el QR en caja", close: "Cerrar", newCoupon: "Nuevo Cupón", timeLeft: "Tiempo restante", expired: "Cupón Expirado", expiredMsg: "Escanea el QR nuevamente.", couponWarning: "Válido 10 min · Solo en caja", admin: "Admin", business: "Mi Local", login: "Ingresar", email: "Email", password: "Pass", adminPanel: "Panel Admin", businessPanel: "Panel Comercio", hotelRanking: "Hoteles", manageBusinesses: "Comercios", totalClicks: "Clicks", expiration: "Vencimiento", claimPayment: "Reclamar", toggleActive: "Estado", offerEs: "Oferta ES", offerEn: "Oferta EN", offerPt: "Oferta PT", save: "Guardar", saved: "¡Guardado!", active: "Activo", inactive: "Inactivo", logout: "Salir", featured: "DESTACADO", enableGPS: "Activar GPS", kmAway: "km", mapView: "Mapa", listView: "Lista", loading: "Cargando..." },
 };
 
-// ============================================================
-// COMPONENTE PRINCIPAL
-// ============================================================
+function getDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function CalafatePlus() {
   const [lang, setLang] = useState("es");
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
-  const t = translations[lang];
+  const [coupon, setCoupon] = useState<any>(null);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const t = T[lang] || T.es;
 
-  // 1. Cargar locales de la base de datos
   useEffect(() => {
-    async function loadData() {
-      const { data } = await supabase
-        .from("businesses")
-        .select("*")
-        .eq("is_active", true);
+    supabase.from("businesses").select("*").eq("is_active", true).then(({ data }) => {
       if (data) setBusinesses(data);
       setLoading(false);
-    }
-    loadData();
+    });
   }, []);
 
-  // 2. Función para registrar el CLICK y abrir WhatsApp/Maps
-  const handleAction = async (
-    id: string,
-    currentClicks: number,
-    type: string,
-    url: string
-  ) => {
-    // Registramos que hubo un interés en la DB
-    if (type === "coupon") {
-      await supabase
-        .from("businesses")
-        .update({ total_clicks: (currentClicks || 0) + 1 })
-        .eq("id", id);
-    }
-    window.open(url, "_blank");
+  const locate = () => {
+    navigator.geolocation.getCurrentPosition((p) => {
+      setUserLat(p.coords.latitude);
+      setUserLng(p.coords.longitude);
+    });
   };
 
-  const filtered = businesses.filter(
-    (b) => category === "all" || b.category === category
-  );
+  const filtered = businesses.filter((b) => category === "all" || b.category === category);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#011627",
-        color: "#fff",
-        fontFamily: "sans-serif",
-        padding: "20px",
-      }}
-    >
-      {/* Selector de Idioma */}
-      <div style={{ textAlign: "right", marginBottom: "10px" }}>
-        <button onClick={() => setLang("es")}>🇦🇷</button>
-        <button onClick={() => setLang("en")}>🇬🇧</button>
-        <button onClick={() => setLang("pt")}>🇧🇷</button>
-      </div>
-
-      <header style={{ textAlign: "center", marginBottom: "30px" }}>
-        <h1 style={{ fontSize: "32px", margin: "0" }}>{t.appName}</h1>
-        <p style={{ color: "#4A90D9" }}>{t.tagline}</p>
+    <div style={{ minHeight: "100vh", background: "#011627", color: "#fff", fontFamily: "sans-serif" }}>
+      <header style={{ background: "#003366", padding: "15px", textAlign: "center", borderBottom: "2px solid #4A90D9" }}>
+        <h2 style={{ margin: 0 }}>🏔️ Calafate Plus</h2>
       </header>
 
-      {/* Filtro por Categorías */}
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          overflowX: "auto",
-          marginBottom: "20px",
-          paddingBottom: "10px",
-        }}
-      >
-        {Object.keys(t.categories).map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            style={{
-              background:
-                category === cat ? "#4A90D9" : "rgba(255,255,255,0.1)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "20px",
-              padding: "8px 15px",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {t.categories[cat]}
+      <main style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <button onClick={locate} style={{ padding: "12px 20px", borderRadius: 10, background: "#4A90D9", color: "#fff", border: "none", fontWeight: "bold" }}>
+             {userLat ? "📍 GPS Conectado" : "📍 Activar Beneficios Cercanos"}
           </button>
-        ))}
-      </div>
+        </div>
 
-      {/* Lista de Locales */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-        {loading ? (
-          <p>Cargando locales de El Calafate...</p>
-        ) : (
-          filtered.map((biz) => (
-            <div
-              key={biz.id}
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid #4A90D933",
-                borderRadius: "15px",
-                padding: "15px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "start",
-                }}
-              >
-                <div>
-                  <h2 style={{ margin: "0", fontSize: "20px" }}>{biz.name}</h2>
-                  <p
-                    style={{ margin: "5px 0", fontSize: "12px", color: "#aaa" }}
-                  >
-                    📍 {biz.address}
-                  </p>
-                </div>
-                <div
-                  style={{
-                    background: "#27AE60",
-                    padding: "5px 10px",
-                    borderRadius: "8px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {biz.offer_es || `${biz.discount_pct}% OFF`}
-                </div>
+        <div style={{ display: "grid", gap: 15 }}>
+          {filtered.map((biz) => (
+            <div key={biz.id} style={{ background: "rgba(255,255,255,0.05)", padding: 20, borderRadius: 15, border: "1px solid #4A90D933" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                 <h3 style={{ margin: 0 }}>{biz.name}</h3>
+                 <span style={{ color: "#FFD700", fontWeight: "bold", fontSize: 20 }}>{biz.discount_pct}% OFF</span>
               </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "10px",
-                  marginTop: "15px",
-                }}
-              >
-                {/* Botón Google Maps */}
-                <button
-                  onClick={() =>
-                    handleAction(
-                      biz.id,
-                      biz.total_clicks,
-                      "map",
-                      `https://www.google.com/maps?q=${biz.lat},${biz.lng}`
-                    )
-                  }
-                  style={{
-                    background: "#444",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "10px",
-                    cursor: "pointer",
-                  }}
-                >
-                  🗺️ {t.location}
+              <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: 15 }}>{biz.offer_es}</p>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {/* BOTÓN CÓMO LLEGAR */}
+                <button 
+                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`, "_blank")}
+                  style={{ padding: 10, borderRadius: 8, background: "#333", color: "#fff", border: "none", cursor: "pointer" }}>
+                  📍 Mapa
                 </button>
-
-                {/* Botón WhatsApp */}
-                <button
-                  onClick={() =>
-                    handleAction(
-                      biz.id,
-                      biz.total_clicks,
-                      "ws",
-                      `https://wa.me/${biz.phone?.replace(/\D/g, "")}`
-                    )
-                  }
-                  style={{
-                    background: "#25D366",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "10px",
-                    cursor: "pointer",
-                  }}
-                >
-                  📱 {t.contact}
+                
+                {/* BOTÓN WHATSAPP */}
+                <button 
+                  onClick={() => window.open(`https://wa.me/${biz.phone?.toString().replace(/\D/g,'')}`, "_blank")}
+                  style={{ padding: 10, borderRadius: 8, background: "#25D366", color: "#fff", border: "none", cursor: "pointer", fontWeight: "bold" }}>
+                  📱 WhatsApp
                 </button>
               </div>
 
-              {/* Botón Cupón (Registra Click) */}
-              <button
-                onClick={() =>
-                  handleAction(biz.id, biz.total_clicks, "coupon", "#")
-                }
-                style={{
-                  width: "100%",
-                  marginTop: "10px",
-                  background: "linear-gradient(135deg, #4A90D9, #003366)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
-              >
-                🎫 {t.viewCoupon}
+              <button 
+                onClick={() => setCoupon(biz)}
+                style={{ width: "100%", marginTop: 10, padding: 15, borderRadius: 8, background: "linear-gradient(135deg, #4A90D9, #003366)", color: "#fff", border: "none", fontWeight: "bold", fontSize: 16 }}>
+                🎫 VER CUPÓN
               </button>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      </main>
+
+      {/* MODAL DEL CUPÓN */}
+      {coupon && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
+          <div style={{ background: "#fff", color: "#000", padding: 30, borderRadius: 20, textAlign: "center", width: "100%", maxWidth: 350 }}>
+            <h2 style={{ margin: 0 }}>{coupon.name}</h2>
+            <h1 style={{ fontSize: 40, color: "#4A90D9" }}>{coupon.discount_pct}% OFF</h1>
+            <div style={{ background: "#eee", padding: 20, borderRadius: 10, margin: "20px 0" }}>
+               <p style={{ margin: 0, fontWeight: "bold", fontSize: 24, letterSpacing: 3 }}>CP-{Math.floor(Math.random()*9000)+1000}</p>
+               <small>Presentar este código en caja</small>
+            </div>
+            <p>⏳ Válido por 10 minutos</p>
+            <button onClick={() => setCoupon(null)} style={{ width: "100%", padding: 12, background: "#000", color: "#fff", borderRadius: 10, border: "none" }}>CERRAR</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
