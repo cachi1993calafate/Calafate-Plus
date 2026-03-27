@@ -3,16 +3,12 @@ import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, X, Save, LogOut, MapPin, MessageCircle } from "lucide-react";
+import { Download, X, LogOut, MapPin, MessageCircle, User, Store } from "lucide-react";
 
-// Icono personalizado para el mapa
 const iconBiz = L.icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
 });
-
-// Imagen por defecto si el local no tiene foto
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=400&auto=format&fit=crop";
 
 export default function CalafatePlus() {
   const [businesses, setBusinesses] = useState<any[]>([]);
@@ -22,7 +18,7 @@ export default function CalafatePlus() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   const ADMIN_EMAIL = "cachi_93_16@hotmail.com";
-  const MI_WHATSAPP = "5492966694462"; // TU NÚMERO REAL
+  const MI_WHATSAPP = "5492966694462"; 
 
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -33,12 +29,7 @@ export default function CalafatePlus() {
       e.preventDefault();
       setDeferredPrompt(e);
     });
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user.email === ADMIN_EMAIL) setView("admin");
-      fetchData();
-    };
-    init();
+    fetchData();
   }, []);
 
   const fetchData = async () => {
@@ -56,105 +47,124 @@ export default function CalafatePlus() {
   const handleLogin = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) alert("Datos incorrectos");
-    else { if (email === ADMIN_EMAIL) setView("admin"); fetchData(); }
+    else { setView("admin"); fetchData(); }
   };
 
-  const installApp = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      setDeferredPrompt(null);
-    } else {
-      alert("En iPhone: Compartir -> 'Agregar a inicio'. En Android: 3 puntos -> 'Instalar'.");
-    }
+  const activeMap = () => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => setUserLoc({lat: p.coords.latitude, lng: p.coords.longitude}),
+      (err) => alert("Por favor activá el GPS para ver locales cerca"),
+      { enableHighAccuracy: true }
+    );
   };
 
-  // --- VISTA ADMIN (PANEL CACHI) ---
   if (view === "admin") {
     return (
-      <div style={{ padding: "15px", background: "#f8f9fa", minHeight: "100vh", color: "#333", paddingBottom: "100px" }}>
+      <div style={{ padding: "15px", background: "#f0f2f5", minHeight: "100vh", color: "#333", paddingBottom: "100px" }}>
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{color: "#011627", margin: 0}}>Panel Admin Cachi</h2>
-          <button onClick={() => { supabase.auth.signOut(); setView("user"); }} style={{ background: "none", border: "none", cursor: "pointer" }}><LogOut color="red"/></button>
+          <h2 style={{margin:0}}>Panel de Control</h2>
+          <button onClick={() => { supabase.auth.signOut(); setView("user"); }} style={{ background: "#ff4757", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "8px" }}>SALIR</button>
         </header>
         {businesses.map(b => (
-          <div key={b.id} style={{ background: "#fff", padding: "12px", borderRadius: "12px", marginBottom: "10px", border: "1px solid #ddd", display: "flex", alignItems: "center", gap: "10px" }}>
-            <img src={b.image_url || DEFAULT_IMAGE} alt={b.name} style={{width: "50px", height: "50px", borderRadius: "8px", objectFit: "cover"}} />
-            <div>
-              <b style={{fontSize: "16px"}}>{b.name}</b> <span style={{color: "#e74c3c", fontWeight: "bold"}}>({b.discount_short})</span>
-              <div style={{fontSize: "12px", color: "#666"}}>{b.phone}</div>
-            </div>
+          <div key={b.id} style={{ background: "#fff", padding: "12px", borderRadius: "10px", marginBottom: "10px", border: "1px solid #ddd" }}>
+            <b>{b.name}</b> <span style={{color:'red'}}>{b.discount_short}</span>
           </div>
         ))}
-        <button onClick={() => setShowForm(true)} style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "#011627", color: "#fff", border: "none", padding: "15px 30px", borderRadius: "50px", fontWeight: "bold", fontSize: "16px", boxShadow: "0 4px 10px rgba(0,0,0,0.3)", cursor: "pointer", zIndex: 100 }}>+ NUEVO LOCAL</button>
+        <button onClick={() => setShowForm(true)} style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "#011627", color: "#fff", border: "none", padding: "15px 30px", borderRadius: "50px", fontWeight: "bold", zIndex: 100 }}>+ AGREGAR LOCAL</button>
         {showForm && (
-          <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, padding: "25px", color: "#000", overflowY: "auto" }}>
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}><h2>Cargar Local</h2><button onClick={() => setShowForm(false)} style={{border: "none", background: "none"}}><X size={30}/></button></div>
-            <input placeholder="Nombre del Comercio" onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
-            <input placeholder="WhatsApp (Ej: 2966123456)" onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
-            <input placeholder="Descuento Corto (Ej: 10%, 2x1)" onChange={e => setFormData({...formData, discount_short: e.target.value})} style={inputStyle} />
-            <textarea placeholder="Descripción del descuento" onChange={e => setFormData({...formData, offer_es: e.target.value})} style={{...inputStyle, height: "80px"}} />
-            <input placeholder="URL de la Foto (Link de FB/IG)" onChange={e => setFormData({...formData, image_url: e.target.value})} style={inputStyle} />
-            <button onClick={() => navigator.geolocation.getCurrentPosition(p => setFormData({...formData, lat: p.coords.latitude, lng: p.coords.longitude}))} style={{ width: "100%", background: "#4A90D9", color: "#fff", padding: "15px", borderRadius: "12px", border: "none", marginBottom: "15px", fontWeight: "bold" }}>📍 CAPTURAR UBICACIÓN ACTUAL</button>
-            <button onClick={async () => { await supabase.from("businesses").insert([formData]); setShowForm(false); fetchData(); }} style={{ width: "100%", background: "#25D366", color: "#fff", padding: "18px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "18px" }}>GUARDAR Y PUBLICAR</button>
+          <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, padding: "20px", overflowY: "auto", color: "#000" }}>
+            <h2>Nuevo Comercio</h2>
+            <input placeholder="Nombre" onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
+            <input placeholder="WhatsApp" onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
+            <input placeholder="Descuento (ej: 15%)" onChange={e => setFormData({...formData, discount_short: e.target.value})} style={inputStyle} />
+            <textarea placeholder="Descripción" onChange={e => setFormData({...formData, offer_es: e.target.value})} style={{...inputStyle, height: "80px"}} />
+            <input placeholder="URL de la Foto" onChange={e => setFormData({...formData, image_url: e.target.value})} style={inputStyle} />
+            <button onClick={() => navigator.geolocation.getCurrentPosition(p => setFormData({...formData, lat: p.coords.latitude, lng: p.coords.longitude}))} style={{ width: "100%", background: "#4A90D9", color: "#fff", padding: "15px", borderRadius: "10px", border: "none", marginBottom: "10px" }}>📍 USAR MI UBICACIÓN ACTUAL</button>
+            <button onClick={async () => { await supabase.from("businesses").insert([formData]); setShowForm(false); fetchData(); }} style={{ width: "100%", background: "#25D366", color: "#fff", padding: "15px", borderRadius: "10px", border: "none", fontWeight: "bold" }}>GUARDAR LOCAL</button>
+            <button onClick={() => setShowForm(false)} style={{ width: "100%", marginTop: "10px", background: "none", border: "none" }}>Cerrar</button>
           </div>
         )}
       </div>
     );
   }
 
-  // --- VISTA PÚBLICO (USUARIO) ---
   return (
     <div style={{ minHeight: "100vh", background: "#011627", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* BANNER INSTALACIÓN */}
-      <div style={{ background: "#4A90D9", padding: "12px", textAlign: "center", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }} onClick={installApp}>
-        <Download size={18} style={{marginRight: "8px", marginBottom: "-3px"}}/> INSTALAR APP CALAFATE PLUS
+      {/* HEADER SUPERIOR */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 20px", background: "rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#4A90D9", fontWeight: "bold" }} onClick={() => setDeferredPrompt(null)}>
+          <Download size={18}/> APP
+        </div>
+        <button onClick={() => setView("login")} style={{ background: "rgba(74,144,217,0.2)", color: "#4A90D9", border: "1px solid #4A90D9", padding: "5px 12px", borderRadius: "20px", fontSize: "12px", display: "flex", alignItems: "center", gap: "5px" }}>
+          <User size={14}/> LOGIN ADMIN
+        </button>
       </div>
 
-      <header style={{ padding: "30px 20px", textAlign: "center", background: "linear-gradient(180deg, #022b4d 0%, #011627 100%)" }}>
-        <h1 style={{ margin: 0, fontSize: "32px", fontWeight: "bold", letterSpacing: "1px" }}>CALAFATE PLUS</h1>
-        <p onClick={() => setView("login")} style={{ color: "#4A90D9", marginTop: "5px", fontSize: "14px", cursor: "pointer" }}>Descuentos en el Glaciar</p>
+      <header style={{ padding: "30px 20px", textAlign: "center" }}>
+        <h1 style={{ margin: 0, fontSize: "32px", fontWeight: "bold" }}>CALAFATE PLUS</h1>
+        <p style={{ color: "#4A90D9", marginTop: "5px", letterSpacing: "2px" }}>DESCUENTOS EN EL GLACIAR</p>
       </header>
 
-      {/* BANNER CONTACTO (SÚPER LLAMATIVO) */}
-      <div style={{ margin: "0 15px 25px 15px", background: "#FFD700", borderRadius: "20px", padding: "25px", textAlign: "center", color: "#000", boxShadow: "0 4px 15px rgba(255,215,0,0.3)" }}>
-        <h2 style={{ margin: "0 0 8px 0", fontSize: "22px", fontWeight: "bold" }}>🚀 PUBLICITÁ TU NEGOCIO</h2>
-        <p style={{ margin: "0 0 20px 0", fontSize: "15px", fontWeight: "500" }}>Llegá a miles de turistas y vecinos</p>
+      {/* BANNER CONTACTO */}
+      <div style={{ margin: "0 15px 20px 15px", background: "#FFD700", borderRadius: "20px", padding: "20px", textAlign: "center", color: "#000" }}>
+        <h2 style={{ margin: "0 0 5px 0", fontSize: "20px", fontWeight: "bold" }}>🚀 PUBLICITÁ TU NEGOCIO</h2>
         <button 
-          onClick={() => window.open(`https://wa.me/${MI_WHATSAPP}?text=Hola!%20Quiero%20sumar%20mi%20negocio%20a%20Calafate%20Plus`)}
-          style={{ background: "#000", color: "#fff", border: "none", padding: "14px 40px", borderRadius: "12px", fontWeight: "bold", fontSize: "16px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}
+          onClick={() => window.open(`https://wa.me/${MI_WHATSAPP}?text=Hola!%20Quiero%20sumar%20mi%20negocio`)}
+          style={{ background: "#000", color: "#fff", border: "none", padding: "12px 25px", borderRadius: "10px", fontWeight: "bold", marginTop: "10px" }}
         >
           CONTACTARME
         </button>
       </div>
 
+      {/* BOTÓN MAPA */}
       <div style={{ textAlign: "center", marginBottom: "25px" }}>
-        <button onClick={() => navigator.geolocation.getCurrentPosition(p => setUserLoc({lat: p.coords.latitude, lng: p.coords.longitude}))} style={{ background: "#4A90D9", color: "#fff", border: "none", padding: "12px 30px", borderRadius: "50px", fontWeight: "bold", fontSize: "16px", cursor: "pointer", boxShadow: "0 2px 10px rgba(74,144,217,0.3)" }}>
+        <button onClick={activeMap} style={{ background: "#4A90D9", color: "#fff", border: "none", padding: "15px 30px", borderRadius: "50px", fontWeight: "bold", fontSize: "16px", boxShadow: "0 4px 15px rgba(74,144,217,0.4)" }}>
           📍 VER DESCUENTOS CERCA
         </button>
       </div>
 
-      <main style={{ padding: "0 15px 100px 15px" }}>
+      {/* EL MAPA SI ESTÁ ACTIVO */}
+      {userLoc && (
+        <div style={{ height: "300px", width: "92%", margin: "0 auto 25px auto", borderRadius: "20px", overflow: "hidden", border: "2px solid #4A90D9" }}>
+          <MapContainer center={[userLoc.lat, userLoc.lng]} zoom={14} style={{ height: "100%" }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {businesses.map(biz => (
+              <Marker key={biz.id} position={[biz.lat, biz.lng]} icon={iconBiz}>
+                <Popup><b>{biz.name}</b><br/>{biz.discount_short}</Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+      )}
+
+      {/* LISTA DE LOCALES */}
+      <main style={{ padding: "0 15px 100px 15px", maxWidth: "600px", margin: "0 auto" }}>
         {businesses.map(biz => (
-          <div key={biz.id} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "20px", marginBottom: "20px", border: "1px solid rgba(74,144,217,0.2)", overflow: "hidden", position: "relative" }}>
+          <div key={biz.id} style={{ background: "rgba(255,255,255,0.05)", borderRadius: "20px", marginBottom: "20px", border: "1px solid rgba(74,144,217,0.2)", overflow: "hidden", position: "relative" }}>
             
-            {/* CÍRCULO DE DESCUENTO LLAMATIVO */}
-            <div style={{ position: "absolute", top: "15px", right: "15px", background: "#e74c3c", color: "#fff", width: "60px", height: "60px", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold", fontSize: "18px", boxShadow: "0 2px 5px rgba(0,0,0,0.3)", zIndex: 10 }}>
+            <div style={{ position: "absolute", top: "15px", right: "15px", background: "#e74c3c", color: "#fff", padding: "8px 15px", borderRadius: "50px", fontWeight: "bold", fontSize: "18px", zIndex: 5, boxShadow: "0 2px 10px rgba(0,0,0,0.5)" }}>
               {biz.discount_short || "10%"}
             </div>
 
-            {/* FOTO DEL LOCAL */}
-            <img src={biz.image_url || DEFAULT_IMAGE} alt={biz.name} style={{ width: "100%", height: "180px", objectFit: "cover", borderBottom: "1px solid rgba(74,144,217,0.2)" }} />
+            {/* IMAGEN DEL LOCAL O PLACEHOLDER ELEGANTE */}
+            {biz.image_url ? (
+              <img src={biz.image_url} alt={biz.name} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: "100%", height: "150px", background: "linear-gradient(45deg, #022b4d, #011627)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <Store size={50} color="rgba(74,144,217,0.3)" />
+              </div>
+            )}
 
             <div style={{ padding: "20px" }}>
-              <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: "bold" }}>{biz.name}</h3>
-              <p style={{ fontSize: "14px", color: "#ccc", marginBottom: "20px", lineHeight: "1.5" }}>{biz.offer_es}</p>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "22px" }}>{biz.name}</h3>
+              <p style={{ fontSize: "14px", color: "#ccc", marginBottom: "20px" }}>{biz.offer_es}</p>
               
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <button onClick={() => window.open(`http://googleusercontent.com/maps.google.com/3{biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
                   <MapPin size={16}/> MAPA
                 </button>
-                <button onClick={() => window.open(`https://wa.me/${cleanPhone(biz.phone)}`)} style={{ background: "#25D366", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+                <button onClick={() => window.open(`https://wa.me/${cleanPhone(biz.phone)}`)} style={{ background: "#25D366", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
                   <MessageCircle size={16}/> WHATSAPP
                 </button>
               </div>
@@ -163,14 +173,14 @@ export default function CalafatePlus() {
         ))}
       </main>
 
-      {/* LOGIN MODAL */}
+      {/* MODAL DE LOGIN */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#011627", zIndex: 9999, padding: "40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <h2 style={{textAlign: "center", marginBottom: "20px"}}>Acceso Admin</h2>
+          <h2 style={{textAlign: "center", marginBottom: "20px"}}>Acceso Comerciantes</h2>
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
           <input type="password" placeholder="Clave" value={pass} onChange={e => setPass(e.target.value)} style={inputStyle} />
-          <button onClick={handleLogin} style={{ width: "100%", padding: "15px", background: "#4A90D9", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>ENTRAR</button>
-          <button onClick={() => setView("user")} style={{ marginTop: "30px", color: "#fff", background: "none", border: "none", opacity: 0.5, cursor: "pointer" }}>Cerrar</button>
+          <button onClick={handleLogin} style={{ width: "100%", padding: "15px", background: "#4A90D9", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold" }}>ENTRAR</button>
+          <button onClick={() => setView("user")} style={{ marginTop: "30px", color: "#fff", background: "none", border: "none", opacity: 0.5 }}>Volver atrás</button>
         </div>
       )}
     </div>
