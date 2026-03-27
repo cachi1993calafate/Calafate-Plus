@@ -2,11 +2,35 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#011627" />
+    <meta name="description" content="Calafate Plus - Guía de descuentos y beneficios en El Calafate" />
+    
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CalafatePlus">
+
     <title>Calafate Plus</title>
+    
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #011627; /* El azul oscuro de tu app */
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      }
+      /* Evita que la pantalla rebote al scrollear en iPhone */
+      html, body {
+        overscroll-behavior-y: contain;
+      }
+    </style>
   </head>
   <body>
-    <noscript>Necesitas habilitar JavaScript para ejecutar esta app.</noscript>
+    <noscript>Necesitás habilitar JavaScript para usar Calafate Plus.</noscript>
     <div id="root"></div>
   </body>
 </html>
