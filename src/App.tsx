@@ -117,7 +117,6 @@ export default function CalafatePlus() {
 
   const mapMarkers = useMemo(() => filteredBiz.filter(b => b.lat && b.lng), [filteredBiz]);
 
-  // QR Scanner Lógica
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
     if (view === "scanner" && currentScannerId) {
@@ -155,7 +154,6 @@ export default function CalafatePlus() {
         <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
       </header>
 
-      {/* MAPA NUEVO (CLARO) */}
       <div style={{ height: "250px", margin: "20px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b" }}>
         <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
@@ -174,7 +172,6 @@ export default function CalafatePlus() {
         </MapContainer>
       </div>
 
-      {/* BUSCADOR Y CATEGORÍAS */}
       <div style={{ padding: "0 20px" }}>
         <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
           <Search size={20} color="#64748b" />
@@ -187,7 +184,6 @@ export default function CalafatePlus() {
         </div>
       </div>
 
-      {/* LISTA DE LOCALES (Con Scanner y WhatsApp) */}
       <main style={{ padding: "20px" }}>
         {filteredBiz.map(biz => (
           <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "25px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
@@ -200,7 +196,9 @@ export default function CalafatePlus() {
             </button>
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <button onClick={() => window.open(`http://googleusercontent.com/maps.google.com/?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>📍 MAPA</button>
+              {/* CORRECCIÓN BOTÓN MAPA AQUÍ */}
+              <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>📍 MAPA</button>
+              
               <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
                 <MessageCircle size={18}/> WHATSAPP
               </button>
@@ -209,7 +207,6 @@ export default function CalafatePlus() {
         ))}
       </main>
 
-      {/* PANEL ADMIN ABAJO */}
       {isAdmin && (
         <div style={{ background: "rgba(34, 197, 94, 0.05)", margin: "20px", borderRadius: "25px", padding: "20px", border: "1px solid #22c55e" }}>
           <h3 style={{ marginTop: 0, color: "#22c55e" }}>Gestión Maestra</h3>
@@ -239,7 +236,6 @@ export default function CalafatePlus() {
         </div>
       )}
 
-      {/* LOGIN */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#010b14", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: "85%", maxWidth: "350px", textAlign: "center" }}>
