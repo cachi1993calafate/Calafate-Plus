@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo, CSSProperties } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, X, MessageCircle, Camera, Search, Star, Globe, LogOut, DollarSign } from "lucide-react";
+import { Download, X, MessageCircle, Camera, Search, LogOut } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// --- LÓGICA DE ICONOS (Conecta tu Supabase con tus 8 Emojis) ---
+// --- LÓGICA DE ICONOS ---
 const getBizIcon = (category: string) => {
   let color = "#3b82f6"; 
   let iconHtml = "📍";
@@ -60,6 +60,7 @@ export default function CalafatePlus() {
   const [currentScannerId, setCurrentScannerId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [installPrompt, setInstallPrompt] = useState<any>(null); // Para el botón de descarga
   
   const defaultCenter: [number, number] = [-50.338, -72.263];
   const userLocation: [number, number] = [-50.336, -72.260]; 
@@ -80,6 +81,12 @@ export default function CalafatePlus() {
     fetchData();
     if (localStorage.getItem("cachi_admin") === "true") setIsAdmin(true);
     
+    // Capturar el evento de instalación para el botón de descarga
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    });
+
     const style = document.createElement('style');
     style.innerHTML = `
       .user-gps-marker { width: 18px; height: 18px; background-color: #ef4444; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; }
@@ -91,6 +98,16 @@ export default function CalafatePlus() {
   const fetchData = async () => {
     const { data } = await supabase.from("businesses").select("*").order('is_featured', { ascending: false });
     if (data) setBusinesses(data);
+  };
+
+  const handleInstall = async () => {
+    if (!installPrompt) {
+      alert("Para descargar: Tocá los 3 puntos del navegador y seleccioná 'Instalar aplicación' o 'Agregar a pantalla de inicio'.");
+      return;
+    }
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") setInstallPrompt(null);
   };
 
   const processPayment = async (biz: any) => {
@@ -144,7 +161,9 @@ export default function CalafatePlus() {
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
       <div style={{ display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center" }}>
-        <Download size={24} color="#3b82f6" />
+        {/* BOTÓN DE DESCARGA ARREGLADO */}
+        <Download size={24} color="#3b82f6" onClick={handleInstall} style={{ cursor: "pointer" }} />
+        
         {isAdmin ? <LogOut size={24} color="#ef4444" onClick={() => {setIsAdmin(false); localStorage.removeItem("cachi_admin");}} /> : 
         <button onClick={() => setView("login")} style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid #3b82f6", padding: "6px 16px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px" }}>ADMIN</button>}
       </div>
@@ -196,9 +215,7 @@ export default function CalafatePlus() {
             </button>
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              {/* CORRECCIÓN BOTÓN MAPA AQUÍ */}
-              <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>📍 MAPA</button>
-              
+              <button onClick={() => window.open(`http://googleusercontent.com/maps.google.com/?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>📍 MAPA</button>
               <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
                 <MessageCircle size={18}/> WHATSAPP
               </button>
