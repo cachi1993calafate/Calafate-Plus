@@ -6,19 +6,19 @@ import L from "leaflet";
 import { Download, MessageCircle, Camera, Search, LogOut } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// --- ICONOS CON DIBUJOS Y COLORES ---
+// --- ICONOS CON TUS 8 CATEGORÍAS ---
 const getBizIcon = (category: string) => {
   let color = "#3b82f6"; 
   let iconHtml = "📍";
-  const cat = category ? category.toLowerCase() : "";
+  const cat = category ? category.trim() : "";
 
-  if (cat.includes("gastro")) { color = "#ef4444"; iconHtml = "🍴"; }
-  else if (cat.includes("pana")) { color = "#f59e0b"; iconHtml = "🥖"; }
-  else if (cat.includes("kios")) { color = "#facc15"; iconHtml = "🍬"; }
-  else if (cat.includes("láser") || cat.includes("laser") || cat.includes("serv")) { color = "#06b6d4"; iconHtml = "🛠️"; }
-  else if (cat.includes("emprend")) { color = "#8b5cf6"; iconHtml = "🚀"; }
-  else if (cat.includes("regal")) { color = "#ec4899"; iconHtml = "🎁"; }
-  else if (cat.includes("excur")) { color = "#10b981"; iconHtml = "🏔️"; }
+  if (cat === "Gastronomía") { color = "#ef4444"; iconHtml = "🍽️"; }
+  else if (cat === "Compras") { color = "#facc15"; iconHtml = "🛒"; }
+  else if (cat === "Servicios") { color = "#06b6d4"; iconHtml = "🛠️"; }
+  else if (cat === "Construcción") { color = "#94a3b8"; iconHtml = "🏗️"; }
+  else if (cat === "Cuidado personal") { color = "#f472b6"; iconHtml = "✂️"; }
+  else if (cat === "Regalería") { color = "#ec4899"; iconHtml = "🎁"; }
+  else if (cat === "Emprendedores") { color = "#8b5cf6"; iconHtml = "🚀"; }
   else { color = "#64748b"; iconHtml = "📦"; } 
 
   return L.divIcon({
@@ -57,14 +57,14 @@ export default function CalafatePlus() {
   const [searchTerm, setSearchTerm] = useState("");
   const [catFilter, setCatFilter] = useState("Todos");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [currentScannerId, setCurrentScannerId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   
   const defaultCenter: [number, number] = [-50.338, -72.263];
   const userLocation: [number, number] = [-50.336, -72.260]; 
 
-  const CATEGORIES = ["Todos", "Gastronomía", "Panadería", "Kiosco", "Láser", "Emprendedores", "Regalos", "Excursiones"];
+  // TUS 8 CATEGORÍAS
+  const CATEGORIES = ["Todos", "Gastronomía", "Compras", "Servicios", "Construcción", "Cuidado personal", "Regalería", "Emprendedores", "Varios"];
 
   useEffect(() => {
     fetchData();
@@ -91,7 +91,7 @@ export default function CalafatePlus() {
 
   const filteredBiz = useMemo(() => {
     return businesses.filter(b => 
-      (catFilter === "Todos" || (b.category && b.category.toLowerCase().includes(catFilter.toLowerCase().substring(0,4)))) &&
+      (catFilter === "Todos" || b.category === catFilter) &&
       (b.name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [businesses, searchTerm, catFilter]);
@@ -112,10 +112,9 @@ export default function CalafatePlus() {
         <h1 style={{ margin: 0, fontSize: "42px", fontWeight: "900" }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
       </header>
 
-      {/* MAPA CLARO Y VISIBLE */}
-      <div style={{ height: "280px", margin: "15px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b", boxShadow: "0 10px 20px rgba(0,0,0,0.5)" }}>
+      {/* MAPA */}
+      <div style={{ height: "280px", margin: "15px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b" }}>
         <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
-          {/* TileLayer de Voyager: Más claro, se ven las calles y nombres perfectamente */}
           <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
           
           <Marker position={userLocation} icon={userIcon}>
@@ -132,7 +131,7 @@ export default function CalafatePlus() {
         </MapContainer>
       </div>
 
-      {/* BUSCADOR Y CATEGORÍAS */}
+      {/* BUSCADOR */}
       <div style={{ padding: "0 20px" }}>
         <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
           <Search size={20} color="#64748b" />
@@ -140,12 +139,12 @@ export default function CalafatePlus() {
         </div>
         <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
           {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} style={{ background: c === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold", transition: "0.3s" }}>{c}</button>
+            <button key={c} onClick={() => setCatFilter(c)} style={{ background: c === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c}</button>
           ))}
         </div>
       </div>
 
-      {/* LISTA DE RESULTADOS */}
+      {/* LISTA */}
       <main style={{ padding: "20px" }}>
         {filteredBiz.length > 0 ? filteredBiz.map(biz => (
           <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "20px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
@@ -153,18 +152,18 @@ export default function CalafatePlus() {
             <h3 style={{ margin: "0 0 5px 0", fontSize: "22px", fontWeight: "900" }}>{biz.name}</h3>
             <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 15px 0" }}>{biz.offer_es}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "#22c55e", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "13px" }}>WHATSAPP</button>
-              <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "13px" }}>COMO LLEGAR</button>
+              <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "#22c55e", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold" }}>WHATSAPP</button>
+              <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold" }}>UBICACIÓN</button>
             </div>
           </div>
         )) : (
           <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>
-            <p>No hay locales en esta categoría todavía.</p>
+            <p>Todavía no hay locales cargados en esta categoría.</p>
           </div>
         )}
       </main>
 
-      {/* LOGIN PANEL (Solo para vos) */}
+      {/* LOGIN */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#010b14", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: "85%", textAlign: "center" }}>
