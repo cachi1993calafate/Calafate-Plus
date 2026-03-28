@@ -6,7 +6,7 @@ import L from "leaflet";
 import { Download, Camera, Search, LogOut, Settings, Trash2, RotateCcw, Edit2, X, Bell, BarChart3, PlusCircle } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// --- ICONOS ---
+// --- ICONOS PERSONALIZADOS ---
 const getBizIcon = (category: string) => {
   let color = "#3b82f6"; let iconHtml = "📍";
   const cat = category ? category.toLowerCase().trim() : "";
@@ -76,8 +76,9 @@ export default function CalafatePlus() {
     fetchData();
   };
 
+  // --- FUNCIONES ADMIN ---
   const handleSaveBusiness = async () => {
-    if(!newBiz.name || !newBiz.phone) return alert("Faltan datos");
+    if(!newBiz.name || !newBiz.phone) return alert("Faltan datos obligatorios");
     if (editingId) {
       await supabase.from("businesses").update(newBiz).eq("id", editingId);
       setEditingId(null);
@@ -96,7 +97,7 @@ export default function CalafatePlus() {
   };
 
   const deleteBusiness = async (id: string, name: string) => {
-    if(window.confirm(`¿Borrar definitivamente "${name}"?`)){
+    if(window.confirm(`¿Seguro que querés eliminar "${name}"?`)){
         await supabase.from("businesses").delete().eq("id", id);
         fetchData();
     }
@@ -111,10 +112,11 @@ export default function CalafatePlus() {
   };
 
   const sendReminder = (biz: any) => {
-    const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto. ¡No te quedes fuera de los beneficios!`;
+    const msg = `Hola ${biz.name}! Te escribimos de Calafate Plus. Tu suscripción vence pronto y queríamos avisarte para que no pierdas tus beneficios.`;
     window.open(`https://wa.me/549${biz.phone}?text=${encodeURIComponent(msg)}`);
   };
 
+  // --- LÓGICA FILTROS ---
   const publicBiz = useMemo(() => {
     const now = new Date();
     return businesses.filter(b => {
@@ -145,7 +147,7 @@ export default function CalafatePlus() {
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* HEADER */}
+      {/* HEADER SUPERIOR */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center" }}>
         <Download size={24} color="#3b82f6" onClick={() => installPrompt?.prompt()} />
         {isAdmin ? (
@@ -170,6 +172,7 @@ export default function CalafatePlus() {
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
+          {/* CARTEL PRINCIPAL DE CONTACTO */}
           <div style={{ margin: "20px", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: "25px", padding: "20px", border: "1px solid #3b82f6", textAlign: "center" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "18px", color: "#fff" }}>¿Querés que tu negocio aparezca acá?</h2>
             <button onClick={() => window.open('https://wa.me/5492902404040')} style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "10px 25px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
@@ -177,6 +180,7 @@ export default function CalafatePlus() {
             </button>
           </div>
 
+          {/* MAPA */}
           <div style={{ height: "250px", margin: "20px", borderRadius: "25px", overflow: "hidden", border: "1px solid #1e293b" }}>
             <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
@@ -189,6 +193,7 @@ export default function CalafatePlus() {
             </MapContainer>
           </div>
 
+          {/* BUSCADOR Y CATEGORÍAS */}
           <div style={{ padding: "0 20px" }}>
             <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
               <Search size={20} color="#64748b" />
@@ -201,6 +206,7 @@ export default function CalafatePlus() {
             </div>
           </div>
 
+          {/* LISTADO DE TARJETAS */}
           <main style={{ padding: "20px" }}>
             {publicBiz.map(biz => (
               <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "25px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
@@ -219,33 +225,35 @@ export default function CalafatePlus() {
           </main>
         </>
       ) : (
-        /* --- PANEL ADMIN COMPLETO --- */
+        /* --- PANEL ADMIN MAESTRO --- */
         <div style={{ padding: "20px" }}>
           <h2 style={{ fontSize: "32px", fontWeight: "900", color: "#fbbf24", marginBottom: "20px" }}>{editingId ? "Editando Local" : "Nuevo Local"}</h2>
           
           <div style={{ background: "#0f172a", borderRadius: "20px", padding: "20px", marginBottom: "30px", border: "1px solid #3b82f6" }}>
             <div style={{ display: "grid", gap: "10px" }}>
               <input value={newBiz.name} placeholder="Nombre del Local" onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <input value={newBiz.offer_es} placeholder="Promoción" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <input value={newBiz.phone} placeholder="WhatsApp" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.offer_es} placeholder="Promoción (Ej: 2x1 en Pintas)" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.phone} placeholder="WhatsApp (Ej: 2902404040)" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <input type="number" step="0.000001" value={newBiz.lat} placeholder="Latitud" onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-                  <input type="number" step="0.000001" value={newBiz.lng} placeholder="Longitud" onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+                  <div style={{fontSize:"11px", color:"#94a3b8"}}>Latitud: <input type="number" step="0.000001" value={newBiz.lat} onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ width:"100%", padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff", marginTop:"5px" }} /></div>
+                  <div style={{fontSize:"11px", color:"#94a3b8"}}>Longitud: <input type="number" step="0.000001" value={newBiz.lng} onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ width:"100%", padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff", marginTop:"5px" }} /></div>
               </div>
-              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold" }}>
+
+              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold", marginTop: "10px" }}>
                 {editingId ? "GUARDAR CAMBIOS" : "CREAR LOCAL"}
               </button>
-              {editingId && <button onClick={() => {setEditingId(null); setNewBiz({name:"", category:"shopping", phone:"", offer_es:"", discount_pct:10, lat:-50.338, lng:-72.263, is_active:true});}} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none" }}><X/></button>}
+              {editingId && <button onClick={() => {setEditingId(null); setNewBiz({name:"", category:"shopping", phone:"", offer_es:"", discount_pct:10, lat:-50.338, lng:-72.263, is_active:true});}} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none", marginTop: "5px" }}><X size={18}/></button>}
             </div>
           </div>
 
-          <h3 style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}><BarChart3 color="#22c55e"/> Métricas de Negocio</h3>
+          <h3 style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}><BarChart3 color="#22c55e"/> Métrica: WA / MAP / QR</h3>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "400px" }}>
               <thead>
                 <tr style={{ color: "#64748b", borderBottom: "1px solid #1e293b", fontSize: "11px" }}>
                   <th align="left" style={{ padding: "10px" }}>NEGOCIO</th>
-                  <th align="center" style={{ padding: "10px" }}>WA/MAP/QR</th>
+                  <th align="center" style={{ padding: "10px" }}>ESTADÍSTICAS</th>
                   <th align="right" style={{ padding: "10px" }}>ACCIONES</th>
                 </tr>
               </thead>
@@ -256,12 +264,12 @@ export default function CalafatePlus() {
                     <tr key={biz.id} style={{ borderBottom: "1px solid #1e293b" }}>
                       <td style={{ padding: "12px 5px" }}>
                         <div style={{ fontWeight: "bold", fontSize: "13px" }}>{biz.name}</div>
-                        <div style={{ fontSize: "10px", color: days <= 5 ? "#ef4444" : "#94a3b8" }}>{days} días restantes</div>
+                        <div style={{ fontSize: "10px", color: days <= 5 ? "#ef4444" : "#94a3b8" }}>{days} días rest.</div>
                       </td>
                       <td align="center">
-                        <span style={{ fontSize: "12px", fontWeight: "900", color: "#fbbf24" }}>{biz.clicks_wa || 0}/{biz.clicks_map || 0}/{biz.clicks_qr || 0}</span>
+                        <span style={{ fontSize: "12px", fontWeight: "900", color: "#fbbf24" }}>{biz.clicks_wa || 0} / {biz.clicks_map || 0} / {biz.clicks_qr || 0}</span>
                       </td>
-                      <td align="right" style={{ padding: "5px", display: "flex", gap: "5px", justifyContent: "flex-end", alignItems: "center" }}>
+                      <td align="right" style={{ padding: "5px", display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
                         {days <= 5 && <Bell size={18} color="#fbbf24" onClick={() => sendReminder(biz)} style={{cursor:"pointer"}}/>}
                         <Edit2 size={18} color="#3b82f6" onClick={() => startEdit(biz)} style={{cursor:"pointer"}}/>
                         <button onClick={() => subtractPayment(biz)} style={{ background: "none", border: "none", color: "#64748b" }}><RotateCcw size={16}/></button>
