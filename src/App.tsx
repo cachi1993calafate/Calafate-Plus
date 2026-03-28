@@ -3,10 +3,10 @@ import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, MessageCircle, Camera, Search, LogOut, Plus, BarChart3, Settings, MapPin, Save, Trash2 } from "lucide-react";
+import { Download, MessageCircle, Camera, Search, LogOut, Plus, BarChart3, Settings, MapPin, Save, Trash2, RotateCcw, Edit2, X } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// --- ICONOS DE CATEGORÍAS (Sincronizados con tu Supabase) ---
+// --- LÓGICA DE ICONOS ---
 const getBizIcon = (category: string) => {
   let color = "#3b82f6"; let iconHtml = "📍";
   const cat = category ? category.toLowerCase().trim() : "";
@@ -19,8 +19,8 @@ const getBizIcon = (category: string) => {
   else if (cat === "emprendimiento" || cat === "emprendedores") { color = "#8b5cf6"; iconHtml = "🚀"; }
   else { color = "#64748b"; iconHtml = "📦"; } 
   return L.divIcon({
-    html: `<div style="background-color: ${color}; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4);"><div style="transform: rotate(45deg); font-size: 16px;">${iconHtml}</div></div>`,
-    className: "", iconSize: [34, 34], iconAnchor: [17, 34]
+    html: `<div style="background-color: ${color}; width: 38px; height: 38px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4);"><div style="transform: rotate(45deg); font-size: 18px;">${iconHtml}</div></div>`,
+    className: "", iconSize: [38, 38], iconAnchor: [19, 38]
   });
 };
 
@@ -43,13 +43,17 @@ export default function CalafatePlus() {
   const [searchTerm, setSearchTerm] = useState("");
   const [catFilter, setCatFilter] = useState("Todos");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentScannerId, setCurrentScannerId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
-  const [currentScannerId, setCurrentScannerId] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
-  // Estados para Nuevo Negocio
-  const [newBiz, setNewBiz] = useState({ name: "", category: "shopping", phone: "", offer_es: "", discount_pct: 10, lat: -50.338, lng: -72.263, is_active: true });
+  // ESTADOS PARA GESTIÓN (NUEVO / EDITAR)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newBiz, setNewBiz] = useState({ 
+    name: "", category: "shopping", phone: "", offer_es: "", discount_pct: 10, 
+    lat: -50.338, lng: -72.263, is_active: true 
+  });
 
   const defaultCenter: [number, number] = [-50.338, -72.263];
   const userLocation: [number, number] = [-50.336, -72.260]; 
@@ -74,10 +78,33 @@ export default function CalafatePlus() {
     if (data) setBusinesses(data);
   };
 
-  // --- LÓGICA DE NEGOCIO Y PAGOS ---
   const trackClick = async (id: string, column: string, currentVal: number) => {
     await supabase.from("businesses").update({ [column]: (currentVal || 0) + 1 }).eq("id", id);
     fetchData();
+  };
+
+  // --- ACCIONES DE ADMIN ---
+  const handleSaveBusiness = async () => {
+    if(!newBiz.name || !newBiz.phone) return alert("Faltan datos");
+    
+    if (editingId) {
+      // ACTUALIZAR EXISTENTE
+      const { error } = await supabase.from("businesses").update(newBiz).eq("id", editingId);
+      if(!error) { alert("Actualizado correctamente"); setEditingId(null); }
+    } else {
+      // CREAR NUEVO
+      const expiry = new Date(); expiry.setDate(expiry.getDate() + 30);
+      const { error } = await supabase.from("businesses").insert([{ ...newBiz, expires_at: expiry.toISOString().split('T')[0] }]);
+      if(!error) alert("Local Creado!");
+    }
+    fetchData();
+    setNewBiz({ name: "", category: "shopping", phone: "", offer_es: "", discount_pct: 10, lat: -50.338, lng: -72.263, is_active: true });
+  };
+
+  const startEdit = (biz: any) => {
+    setEditingId(biz.id);
+    setNewBiz({ name: biz.name, category: biz.category, phone: biz.phone, offer_es: biz.offer_es, discount_pct: biz.discount_pct, lat: biz.lat, lng: biz.lng, is_active: biz.is_active });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const processPayment = async (biz: any) => {
@@ -88,13 +115,22 @@ export default function CalafatePlus() {
     fetchData();
   };
 
-  const createBusiness = async () => {
-    const expiry = new Date(); expiry.setDate(expiry.getDate() + 30);
-    const { error } = await supabase.from("businesses").insert([{ ...newBiz, expires_at: expiry.toISOString().split('T')[0] }]);
-    if (!error) { alert("¡Local Creado!"); fetchData(); }
+  const subtractPayment = async (biz: any) => {
+    if(!biz.expires_at) return;
+    const currentExpiry = new Date(biz.expires_at);
+    currentExpiry.setDate(currentExpiry.getDate() - 30);
+    await supabase.from("businesses").update({ expires_at: currentExpiry.toISOString().split('T')[0] }).eq("id", biz.id);
+    fetchData();
   };
 
-  // Filtro para el público: Solo activos y con fecha válida
+  const deleteBusiness = async (id: string, name: string) => {
+    if(window.confirm(`¿Borrar "${name}"?`)){
+        await supabase.from("businesses").delete().eq("id", id);
+        fetchData();
+    }
+  };
+
+  // --- FILTROS PÚBLICOS ---
   const publicBiz = useMemo(() => {
     const now = new Date();
     return businesses.filter(b => {
@@ -107,39 +143,16 @@ export default function CalafatePlus() {
 
   const mapMarkers = useMemo(() => publicBiz.filter(b => b.lat && b.lng), [publicBiz]);
 
-  // QR Scanner
-  useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
-    if (view === "scanner" && currentScannerId) {
-      scanner = new Html5QrcodeScanner(currentScannerId, { fps: 10, qrbox: 250 }, false);
-      scanner.render(async (text) => {
-        const bizId = currentScannerId.split('-')[1];
-        await trackClick(bizId, "clicks_qr", 0);
-        window.location.href = text;
-        scanner?.clear(); setView("user");
-      }, () => {});
-    }
-    return () => { scanner?.clear().catch(() => {}); };
-  }, [view, currentScannerId]);
-
-  if (view === "scanner") return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 2000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-      <h2 style={{color:"#fff", marginBottom:"20px"}}>Validando Promo...</h2>
-      <div id={currentScannerId!} style={{ width: "85%", borderRadius: "20px", overflow: "hidden" }}></div>
-      <button onClick={() => setView("user")} style={{ marginTop: "30px", background: "#ef4444", color: "#fff", border: "none", padding: "15px 40px", borderRadius: "12px", fontWeight: "bold" }}>CANCELAR</button>
-    </div>
-  );
-
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* HEADER PUBLICO */}
+      {/* BARRA SUPERIOR */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center" }}>
         <Download size={24} color="#3b82f6" onClick={() => installPrompt?.prompt()} />
         {isAdmin ? (
           <div style={{ display: "flex", gap: "15px" }}>
-            <Settings size={24} color="#fbbf24" onClick={() => setView(view === "admin" ? "user" : "admin")} />
-            <LogOut size={24} color="#ef4444" onClick={() => {setIsAdmin(false); localStorage.removeItem("cachi_admin"); setView("user");}} />
+            <Settings size={24} color="#fbbf24" onClick={() => setView(view === "admin" ? "user" : "admin")} style={{cursor:"pointer"}} />
+            <LogOut size={24} color="#ef4444" onClick={() => {setIsAdmin(false); localStorage.removeItem("cachi_admin"); setView("user");}} style={{cursor:"pointer"}} />
           </div>
         ) : (
           <button onClick={() => setView("login")} style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid #3b82f6", padding: "6px 16px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px" }}>ADMIN</button>
@@ -147,16 +160,15 @@ export default function CalafatePlus() {
       </div>
 
       {view !== "admin" ? (
+        /* --- LOBBY USUARIO --- */
         <>
           <header style={{ textAlign: "center", marginBottom: "20px" }}>
-            <p style={{ color: "#3b82f6", fontWeight: "900", letterSpacing: "3px", fontSize: "12px", margin: "0" }}>FULL DESCUENTOS</p>
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900" }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
           <div style={{ height: "250px", margin: "20px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b" }}>
             <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
-              <Marker position={userLocation} icon={userIcon}><Popup>Estás aquí</Popup></Marker>
               {mapMarkers.map(b => (
                 <Marker key={b.id} position={[b.lat, b.lng]} icon={getBizIcon(b.category)}>
                   <Popup><div style={{color:"#000"}}><b>{b.name}</b><br/>{b.offer_es}</div></Popup>
@@ -166,83 +178,70 @@ export default function CalafatePlus() {
             </MapContainer>
           </div>
 
-          <div style={{ padding: "0 20px" }}>
-            <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
-              <Search size={20} color="#64748b" />
-              <input placeholder="¿Qué buscas?" onChange={e => setSearchTerm(e.target.value)} style={{ background: "none", border: "none", color: "#fff", marginLeft: "10px", width: "100%", outline: "none" }} />
-            </div>
-            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
+          <div style={{ padding: "20px" }}>
+            <div style={{ display: "flex", gap: "10px", overflowX: "auto", marginBottom: "20px" }}>
               {DISPLAY_CATEGORIES.map(c => (
-                <button key={c.db} onClick={() => setCatFilter(c.db)} style={{ background: c.db === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c.label}</button>
+                <button key={c.db} onClick={() => setCatFilter(c.db)} style={{ background: c.db === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "12px", whiteSpace: "nowrap" }}>{c.label}</button>
               ))}
             </div>
-          </div>
-
-          <main style={{ padding: "20px" }}>
             {publicBiz.map(biz => (
-              <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "25px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
-                <div style={{ position: "absolute", top: "20px", right: "20px", background: "#ef4444", color: "#fff", width: "55px", height: "55px", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900", fontSize: "14px" }}>{biz.discount_pct}%</div>
-                <h3 style={{ margin: "0", fontSize: "24px", fontWeight: "900" }}>{biz.name}</h3>
-                <p style={{ color: "#94a3b8", margin: "5px 0 20px 0" }}>{biz.offer_es}</p>
-                <button onClick={() => {setCurrentScannerId(`r-${biz.id}`); setView("scanner");}} style={{ background: "#22c55e", color: "#fff", width: "100%", padding: "14px", borderRadius: "15px", border: "none", fontWeight: "900", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "12px" }}><Camera size={20}/> CANJEAR PROMO</button>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
-                  <button onClick={() => {trackClick(biz.id, "clicks_wa", biz.clicks_wa); let n = biz.phone.replace(/\D/g, ""); window.open(`https://wa.me/549${n}`);}} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold" }}><MessageCircle size={18} style={{display:"inline", marginRight:"5px"}}/> WHATSAPP</button>
+              <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "20px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
+                <div style={{ position: "absolute", top: "20px", right: "20px", background: "#ef4444", color: "#fff", width: "50px", height: "50px", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold" }}>{biz.discount_pct}%</div>
+                <h3 style={{ margin: 0 }}>{biz.name}</h3>
+                <p style={{ color: "#94a3b8" }}>{biz.offer_es}</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "15px" }}>
+                  <button onClick={() => trackClick(biz.id, "clicks_map", biz.clicks_map)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
+                  <button onClick={() => trackClick(biz.id, "clicks_wa", biz.clicks_wa)} style={{ background: "#22c55e", color: "#fff", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>WA</button>
                 </div>
               </div>
             ))}
           </main>
         </>
       ) : (
-        /* --- PANEL ADMIN MAESTRO --- */
+        /* --- PANEL MAESTRO (ADMIN) --- */
         <div style={{ padding: "20px" }}>
-          <h2 style={{ fontSize: "32px", fontWeight: "900", color: "#fbbf24" }}>Panel Maestro</h2>
+          <h2 style={{ color: "#fbbf24" }}>{editingId ? "📝 Editando Local" : "🚀 Nuevo Local"}</h2>
           
-          {/* NUEVO NEGOCIO */}
           <div style={{ background: "#0f172a", borderRadius: "20px", padding: "20px", marginBottom: "30px", border: "1px solid #3b82f6" }}>
-            <h3 style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: 0 }}><Plus color="#3b82f6"/> Nuevo Local</h3>
             <div style={{ display: "grid", gap: "10px" }}>
-              <input placeholder="Nombre del Local" onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <select onChange={e => setNewBiz({...newBiz, category: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }}>
-                {DISPLAY_CATEGORIES.slice(1).map(c => <option key={c.db} value={c.db}>{c.label}</option>)}
-              </select>
-              <input placeholder="WhatsApp (Ej: 2902...)" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <input placeholder="Oferta (Ej: 2x1 en Pintas)" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.name} placeholder="Nombre del Local" onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.offer_es} placeholder="Promoción (Ej: 20% en Cerveza)" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.phone} placeholder="WhatsApp" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => navigator.geolocation.getCurrentPosition(p => setNewBiz({...newBiz, lat: p.coords.latitude, lng: p.coords.longitude}))} style={{ flex: 1, background: "#1e293b", color: "#fff", padding: "12px", borderRadius: "10px", border: "none", fontSize: "12px" }}>📍 CAPTURAR GPS</button>
-                <button onClick={createBusiness} style={{ flex: 1, background: "#3b82f6", color: "#fff", padding: "12px", borderRadius: "10px", border: "none", fontWeight: "bold" }}>CREAR LOCAL</button>
+                <input type="number" value={newBiz.lat} onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ flex: 1, padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+                <input type="number" value={newBiz.lng} onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ flex: 1, padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={handleSaveBusiness} style={{ flex: 2, background: "#3b82f6", color: "#fff", padding: "15px", borderRadius: "12px", fontWeight: "bold", border: "none" }}>{editingId ? "GUARDAR CAMBIOS" : "CREAR LOCAL"}</button>
+                {editingId && <button onClick={() => {setEditingId(null); setNewBiz({ name: "", category: "shopping", phone: "", offer_es: "", discount_pct: 10, lat: -50.338, lng: -72.263, is_active: true });}} style={{ flex: 1, background: "#ef4444", color: "#fff", padding: "15px", borderRadius: "12px", border: "none" }}><X/></button>}
               </div>
             </div>
           </div>
 
-          {/* LISTA DE GESTION (TU EXCEL) */}
-          <h3 style={{ display: "flex", alignItems: "center", gap: "10px" }}><BarChart3 color="#22c55e"/> Suscripciones y Métricas</h3>
+          <h3 style={{ display: "flex", alignItems: "center", gap: "10px" }}><BarChart3 color="#22c55e"/> Métricas y Gestión</h3>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
               <thead>
                 <tr style={{ color: "#64748b", borderBottom: "1px solid #1e293b" }}>
-                  <th style={{ textAlign: "left", padding: "10px" }}>LOCAL / ESTADO</th>
-                  <th style={{ textAlign: "center", padding: "10px" }}>MÉTRICAS (WA/Map/QR)</th>
-                  <th style={{ textAlign: "right", padding: "10px" }}>ACCIÓN</th>
+                  <th style={{ textAlign: "left", padding: "10px" }}>LOCAL</th>
+                  <th style={{ textAlign: "center", padding: "10px" }}>DÍAS</th>
+                  <th style={{ textAlign: "right", padding: "10px" }}>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 {businesses.map(biz => {
                   const daysLeft = biz.expires_at ? Math.ceil((new Date(biz.expires_at).getTime() - new Date().getTime()) / (1000*3600*24)) : 0;
-                  const isCritical = daysLeft <= 5;
                   return (
-                    <tr key={biz.id} style={{ borderBottom: "1px solid #1e293b", background: daysLeft <= 0 ? "rgba(239, 68, 68, 0.05)" : "none" }}>
+                    <tr key={biz.id} style={{ borderBottom: "1px solid #1e293b" }}>
                       <td style={{ padding: "15px 10px" }}>
-                        <div style={{ fontWeight: "bold", color: daysLeft <= 0 ? "#ef4444" : "#fff" }}>{biz.name}</div>
-                        <div style={{ fontSize: "10px", color: isCritical ? "#fbbf24" : "#64748b" }}>Vence en: {daysLeft} días</div>
+                        <div style={{ fontWeight: "bold" }}>{biz.name}</div>
+                        <div style={{ fontSize: "10px", color: "#22c55e" }}>WA: {biz.clicks_wa || 0} | MAP: {biz.clicks_map || 0}</div>
                       </td>
-                      <td style={{ textAlign: "center", padding: "10px" }}>
-                        <span style={{ color: "#22c55e" }}>{biz.clicks_wa || 0}</span> / 
-                        <span style={{ color: "#3b82f6" }}> {biz.clicks_map || 0}</span> / 
-                        <span style={{ color: "#fbbf24" }}> {biz.clicks_qr || 0}</span>
-                      </td>
-                      <td style={{ textAlign: "right", padding: "10px" }}>
-                        <button onClick={() => processPayment(biz)} style={{ background: "#22c55e", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold" }}>+30 DÍAS</button>
+                      <td style={{ textAlign: "center", fontWeight: "bold", color: daysLeft <= 5 ? "#ef4444" : "#22c55e" }}>{daysLeft}d</td>
+                      <td style={{ textAlign: "right", padding: "10px", display: "flex", gap: "5px", justifyContent: "flex-end" }}>
+                        <button onClick={() => startEdit(biz)} style={{ background: "#1e293b", color: "#fbbf24", border: "1px solid #fbbf24", padding: "8px", borderRadius: "8px" }}><Edit2 size={16}/></button>
+                        <button onClick={() => processPayment(biz)} style={{ background: "#22c55e", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "8px", fontWeight: "bold" }}>+30</button>
+                        <button onClick={() => deleteBusiness(biz.id, biz.name)} style={{ background: "none", border: "none", color: "#ef4444" }}><Trash2 size={18}/></button>
                       </td>
                     </tr>
                   );
@@ -253,15 +252,15 @@ export default function CalafatePlus() {
         </div>
       )}
 
-      {/* LOGIN MODAL */}
+      {/* LOGIN */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#010b14", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: "85%", maxWidth: "350px", textAlign: "center" }}>
-            <h2 style={{ fontSize: "28px", fontWeight: "900", marginBottom: "20px" }}>Acceso Admin</h2>
+            <h2 style={{ fontWeight: "900" }}>Acceso Admin</h2>
             <input placeholder="Usuario" onChange={e => setEmail(e.target.value)} style={{ width: "100%", padding: "15px", margin: "10px 0", borderRadius: "15px", border: "1px solid #1e293b", background: "#0f172a", color: "#fff" }} />
             <input type="password" placeholder="Clave" onChange={e => setPass(e.target.value)} style={{ width: "100%", padding: "15px", margin: "10px 0", borderRadius: "15px", border: "1px solid #1e293b", background: "#0f172a", color: "#fff" }} />
-            <button onClick={() => {if(email==="admin@calafateplus.com" && pass==="Cachi2026"){setIsAdmin(true); localStorage.setItem("cachi_admin","true"); setView("admin");}else{alert("Error");}}} style={{ width: "100%", background: "#3b82f6", color: "#fff", padding: "16px", borderRadius: "15px", border: "none", fontWeight: "900" }}>INGRESAR</button>
-            <button onClick={()=>setView("user")} style={{ marginTop: "20px", background: "none", border: "none", color: "#64748b" }}>Cerrar</button>
+            <button onClick={() => {if(email==="admin@calafateplus.com" && pass==="Cachi2026"){setIsAdmin(true); setView("admin");}else{alert("Error");}}} style={{ width: "100%", background: "#3b82f6", color: "#fff", padding: "16px", borderRadius: "15px", fontWeight: "900" }}>INGRESAR</button>
+            <button onClick={()=>setView("user")} style={{ marginTop: "20px", color: "#64748b", background: "none", border: "none" }}>Volver</button>
           </div>
         </div>
       )}
