@@ -1,16 +1,32 @@
 import React, { useState, useEffect, useMemo, CSSProperties } from "react";
 import { supabase } from "./supabase";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, X, MessageCircle, Camera, Search, Star, Globe, Settings, LogOut, DollarSign, MapPin } from "lucide-react";
+import { Download, X, MessageCircle, Camera, Search, Star, Globe, LogOut, DollarSign } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// Icono del Mapa
-const iconBiz = L.icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-  iconSize: [25, 41], iconAnchor: [12, 41]
-});
+// --- LÓGICA DE ICONOS PERSONALIZADOS ---
+const getCustomIcon = (category: string) => {
+  let color = "#3b82f6"; 
+  let iconHtml = "📍";
+
+  if (category === "Gastronomía") { color = "#ef4444"; iconHtml = "🍴"; }
+  if (category === "Panadería") { color = "#f59e0b"; iconHtml = "🥖"; }
+  if (category === "Láser" || category === "Servicios") { color = "#06b6d4"; iconHtml = "🛠️"; }
+  if (category === "Emprendedores") { color = "#8b5cf6"; iconHtml = "🚀"; }
+  if (category === "Regalos") { color = "#ec4899"; iconHtml = "🎁"; }
+  if (category === "Excursiones") { color = "#10b981"; iconHtml = "🏔️"; }
+
+  return L.divIcon({
+    html: `<div style="background-color: ${color}; width: 38px; height: 38px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4);">
+             <div style="transform: rotate(45deg); font-size: 18px;">${iconHtml}</div>
+           </div>`,
+    className: "",
+    iconSize: [38, 38],
+    iconAnchor: [19, 38]
+  });
+};
 
 export default function CalafatePlus() {
   const [businesses, setBusinesses] = useState<any[]>([]);
@@ -22,7 +38,7 @@ export default function CalafatePlus() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
 
-  const CATEGORIES = ["Todos", "Gastronomía", "Alojamiento", "Regalos", "Excursiones", "Otros"];
+  const CATEGORIES = ["Todos", "Gastronomía", "Panadería", "Láser", "Emprendedores", "Regalos", "Excursiones"];
 
   useEffect(() => {
     fetchData();
@@ -42,6 +58,12 @@ export default function CalafatePlus() {
     fetchData();
   };
 
+  const openWhatsApp = (phone: string) => {
+    let cleanNumber = phone.replace(/\D/g, "");
+    if (!cleanNumber.startsWith("54")) cleanNumber = "549" + cleanNumber;
+    window.open(`https://wa.me/${cleanNumber}`, "_blank");
+  };
+
   const filteredBiz = useMemo(() => {
     return businesses.filter(b => 
       (catFilter === "Todos" || b.category === catFilter) &&
@@ -49,14 +71,13 @@ export default function CalafatePlus() {
     );
   }, [businesses, searchTerm, catFilter]);
 
-  // Lógica del Scanner QR
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
     if (view === "scanner" && currentScannerId) {
       scanner = new Html5QrcodeScanner(currentScannerId, { fps: 10, qrbox: 250 }, false);
       scanner.render(async (text) => {
         const bizId = currentScannerId.split('-')[1];
-        await supabase.rpc('increment_qr_scans', { row_id: bizId }); // Si tienes la función, sino usa update
+        await supabase.from("businesses").update({ clicks_qr: 1 }).eq("id", bizId); // Simple track
         window.location.href = text;
         scanner?.clear();
         setView("user");
@@ -95,22 +116,22 @@ export default function CalafatePlus() {
       {/* BANNER CONTACTO */}
       <div style={{ background: "#fbbf24", margin: "20px", borderRadius: "25px", padding: "35px 20px", textAlign: "center", color: "#000" }}>
         <h2 style={{ fontSize: "22px", fontWeight: "900", margin: "0 0 15px 0" }}>¿QUERÉS SUMAR TU LOCAL?</h2>
-        <button onClick={() => window.open('https://wa.me/5492966694462')} style={{ background: "#000", color: "#fff", padding: "12px 30px", borderRadius: "30px", border: "none", fontWeight: "900", fontSize: "14px" }}>CONTACTARME</button>
+        <button onClick={() => openWhatsApp("2966694462")} style={{ background: "#000", color: "#fff", padding: "12px 30px", borderRadius: "30px", border: "none", fontWeight: "900", fontSize: "14px" }}>CONTACTARME</button>
       </div>
 
-      {/* MAPA */}
+      {/* MAPA DINÁMICO */}
       <div style={{ height: "250px", margin: "20px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b" }}>
         <MapContainer center={[-50.338, -72.263]} zoom={14} style={{ height: "100%", width: "100%" }}>
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           {filteredBiz.map(b => b.lat && (
-            <Marker key={b.id} position={[b.lat, b.lng]} icon={iconBiz}>
-              <Popup>{b.name}</Popup>
+            <Marker key={b.id} position={[b.lat, b.lng]} icon={getCustomIcon(b.category)}>
+              <Popup><div style={{color:"#000"}}><b>{b.name}</b><br/>{b.discount_short}</div></Popup>
             </Marker>
           ))}
         </MapContainer>
       </div>
 
-      {/* BUSCADOR */}
+      {/* BUSCADOR Y CATEGORÍAS */}
       <div style={{ padding: "0 20px" }}>
         <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
           <Search size={20} color="#64748b" />
@@ -137,7 +158,7 @@ export default function CalafatePlus() {
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>📍 MAPA</button>
-              <button onClick={() => window.open(`https://wa.me/${biz.phone}`)} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+              <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
                 <MessageCircle size={18}/> WHATSAPP
               </button>
             </div>
@@ -145,7 +166,7 @@ export default function CalafatePlus() {
         ))}
       </main>
 
-      {/* PANEL ADMIN ABAJO */}
+      {/* PANEL ADMIN */}
       {isAdmin && (
         <div style={{ background: "rgba(34, 197, 94, 0.05)", margin: "20px", borderRadius: "25px", padding: "20px", border: "1px solid #22c55e" }}>
           <h3 style={{ marginTop: 0, color: "#22c55e" }}>Gestión Maestra</h3>
