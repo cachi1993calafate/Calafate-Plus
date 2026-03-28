@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaf
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Download, Camera, Settings, Trash2, MessageCircle, Search, LayoutGrid, Bell, Plus, Minus, LogOut, ArrowLeft, User, Lock } from "lucide-react";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 // --- CONFIGURACIÓN DE ICONOS ---
 const userIcon = L.divIcon({
@@ -14,23 +15,19 @@ const userIcon = L.divIcon({
 const getBizIcon = (category: string) => {
   const icons: any = { 
     "gastronomía": "🍽️", "compras": "🛒", "servicios": "🛠️", "construcción": "🏗️", 
-    "cuidado personal": "✂️", "regalería": "🎁", "emprendedores": "🚀", "varios": "💰", "panaderia": "🍞" 
+    "panaderia": "🍞", "varios": "📍" 
   };
-  const icon = icons[category.toLowerCase()] || "📍";
+  const iconEmoji = icons[category.toLowerCase()] || "📍";
   return L.divIcon({
-    html: `<div style="background-color: #3b82f6; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; font-size: 16px;">${icon}</div>`,
+    html: `<div style="background-color: #3b82f6; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; font-size: 16px;">${iconEmoji}</div>`,
     className: "", iconSize: [30, 30], iconAnchor: [15, 15]
   });
 };
 
-// --- COMPONENTE UBICACIÓN DEL USUARIO ---
 function LocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
   const map = useMapEvents({
-    locationfound(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-      map.flyTo(e.latlng, map.getZoom());
-    },
+    locationfound(e) { setPosition([e.latlng.lat, e.latlng.lng]); map.flyTo(e.latlng, map.getZoom()); },
   });
   useEffect(() => { map.locate(); }, [map]);
   return position === null ? null : <Marker position={position} icon={userIcon}><Popup>Estás aquí</Popup></Marker>;
@@ -38,16 +35,17 @@ function LocationMarker() {
 
 export default function CalafatePlus() {
   const [businesses, setBusinesses] = useState<any[]>([]);
-  const [view, setView] = useState<"user" | "admin" | "login">("user");
+  const [view, setView] = useState<"user" | "admin" | "login" | "scanner">("user");
   const [isAdmin, setIsAdmin] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCat, setActiveCat] = useState("todos");
   
-  // Login
   const [userLogin, setUserLogin] = useState("");
   const [passLogin, setPassLogin] = useState("");
-  const ADMIN_USER = "2966694462"; // Tu WhatsApp
-  const ADMIN_PASS = "admin123";   // Tu Clave
+  const [newBiz, setNewBiz] = useState({ name: "", phone: "", category: "varios", lat: "", lng: "", discount: "10" });
+
+  const ADMIN_USER = "2966694462"; 
+  const ADMIN_PASS = "admin123";
 
   const categorias = [
     { id: "todos", label: "Todos", icon: <LayoutGrid size={16}/> },
@@ -73,12 +71,22 @@ export default function CalafatePlus() {
       setIsAdmin(true);
       localStorage.setItem("admin_auth", "true");
       setView("admin");
-    } else {
-      alert("Datos incorrectos");
-    }
+    } else { alert("Datos incorrectos"); }
   };
 
-  const trackClick = async (id: string, type: 'wa_clicks' | 'map_clicks') => {
+  const createBusiness = async () => {
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 30);
+    await supabase.from("businesses").insert([{
+      name: newBiz.name, phone: newBiz.phone, category: newBiz.category,
+      lat: parseFloat(newBiz.lat), lng: parseFloat(newBiz.lng),
+      discount_pct: parseInt(newBiz.discount), expires_at: expires.toISOString().split('T')[0]
+    }]);
+    fetchData();
+    setNewBiz({ name: "", phone: "", category: "varios", lat: "", lng: "", discount: "10" });
+  };
+
+  const trackClick = async (id: string, type: 'wa_clicks' | 'map_clicks' | 'qr_clicks') => {
     const biz = businesses.find(b => b.id === id);
     if (biz) {
       await supabase.from("businesses").update({ [type]: (biz[type] || 0) + 1 }).eq("id", id);
@@ -102,15 +110,34 @@ export default function CalafatePlus() {
     });
   }, [businesses, searchTerm, activeCat]);
 
+  // QR Scanner Logic corregida
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    if (view === "scanner") {
+      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+      scanner.render((text) => {
+        const biz = businesses.find(b => b.id === text);
+        if (biz) { trackClick(biz.id, 'qr_clicks'); alert(`¡Validado en ${biz.name}!`); setView("user"); }
+        scanner?.clear();
+      }, () => {});
+    }
+    return () => { if (scanner) scanner.clear(); };
+  }, [view, businesses]);
+
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* BANNER 1920x700 */}
-      <div style={{ width: "100%", height: "auto", aspectRatio: "1920/700", overflow: "hidden", position: "relative" }}>
-        <img src="banner.png" style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Banner" />
-        <div style={{ position: "absolute", top: "15px", right: "20px" }}>
-           <Settings size={28} color="#fff" onClick={() => isAdmin ? setView("admin") : setView("login")} style={{ cursor: "pointer", filter: "drop-shadow(0 0 5px #000)" }} />
+      <div style={{ padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Download size={24} color="#3b82f6" />
+        <div style={{ display: "flex", gap: "15px" }}>
+          <Settings size={24} color="#fbbf24" onClick={() => isAdmin ? setView("admin") : setView("login")} style={{ cursor: "pointer" }} />
+          {isAdmin && <LogOut size={24} color="#ef4444" onClick={() => { setIsAdmin(false); localStorage.removeItem("admin_auth"); setView("user"); }} />}
         </div>
+      </div>
+
+      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+        <h1 style={{ fontSize: "32px", margin: 0, fontWeight: "900" }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
+        <p style={{ color: "#94a3b8", fontSize: "14px" }}>Guía Comercial y Descuentos</p>
       </div>
 
       {view === "login" ? (
@@ -120,17 +147,34 @@ export default function CalafatePlus() {
             <input placeholder="WhatsApp" value={userLogin} onChange={e => setUserLogin(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
             <input type="password" placeholder="Contraseña" value={passLogin} onChange={e => setPassLogin(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
             <button type="submit" style={{ background: "#3b82f6", padding: "15px", borderRadius: "10px", color: "#fff", border: "none", fontWeight: "bold" }}>ENTRAR</button>
-            <button type="button" onClick={() => setView("user")} style={{ color: "#94a3b8", background: "none", border: "none", marginTop: "10px" }}>Volver al Inicio</button>
+            <button type="button" onClick={() => setView("user")} style={{ color: "#94a3b8", background: "none", border: "none", marginTop: "10px" }}>Volver</button>
           </form>
+        </div>
+      ) : view === "scanner" ? (
+        <div style={{ padding: "20px" }}>
+          <div id="reader" style={{ background: "#fff", borderRadius: "20px", overflow: "hidden" }}></div>
+          <button onClick={() => setView("user")} style={{ width: "100%", marginTop: "20px", padding: "15px", background: "#ef4444", borderRadius: "10px", border: "none", color: "#fff", fontWeight: "bold" }}>CANCELAR</button>
         </div>
       ) : view === "admin" ? (
         <div style={{ padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <ArrowLeft onClick={() => setView("user")} style={{cursor:"pointer"}} />
-              <h2 style={{ color: "#fbbf24", margin: 0 }}>PANEL CONTROL</h2>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
+            <ArrowLeft onClick={() => setView("user")} /> <h2 style={{ color: "#fbbf24", margin: 0 }}>PANEL CONTROL</h2>
+          </div>
+          
+          <div style={{ background: "#0a1929", padding: "20px", borderRadius: "20px", border: "1px solid #3b82f6", marginBottom: "30px" }}>
+            <h3 style={{marginTop: 0, fontSize: "16px"}}>+ AGREGAR COMERCIO</h3>
+            <div style={{ display: "grid", gap: "10px" }}>
+              <input placeholder="Nombre" value={newBiz.name} onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
+              <input placeholder="WhatsApp" value={newBiz.phone} onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
+              <select value={newBiz.category} onChange={e => setNewBiz({...newBiz, category: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }}>
+                {categorias.filter(c => c.id !== "todos").map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <input placeholder="Lat" value={newBiz.lat} onChange={e => setNewBiz({...newBiz, lat: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
+                <input placeholder="Lng" value={newBiz.lng} onChange={e => setNewBiz({...newBiz, lng: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#0f172a", border: "1px solid #1e293b", color: "#fff" }} />
+              </div>
+              <button onClick={createBusiness} style={{ background: "#3b82f6", padding: "15px", borderRadius: "10px", color: "#fff", border: "none", fontWeight: "bold" }}>GUARDAR LOCAL</button>
             </div>
-            <LogOut color="#ef4444" onClick={() => { setIsAdmin(false); localStorage.removeItem("admin_auth"); setView("user"); }} style={{cursor:"pointer"}} />
           </div>
 
           <div style={{ display: "grid", gap: "15px" }}>
@@ -142,12 +186,12 @@ export default function CalafatePlus() {
                     <b>{biz.name}</b>
                     <span style={{ color: days <= 5 ? "#ef4444" : "#22c55e", fontWeight: "bold" }}>{days} Días</span>
                   </div>
-                  <div style={{ fontSize: "12px", color: "#3b82f6", margin: "10px 0" }}>W: {biz.wa_clicks || 0} | M: {biz.map_clicks || 0}</div>
+                  <div style={{ fontSize: "12px", color: "#3b82f6", margin: "10px 0" }}>W: {biz.wa_clicks || 0} | M: {biz.map_clicks || 0} | QR: {biz.qr_clicks || 0}</div>
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "15px" }}>
-                    <Bell size={20} color="#fbbf24" onClick={() => window.open(`https://wa.me/549${biz.phone}?text=Hola%20${biz.name},%20tu%20vencimiento%20es%20en%20${days}%20días.`)} />
+                    <Bell size={20} color="#fbbf24" onClick={() => window.open(`https://wa.me/549${biz.phone}?text=Vence%20en%20${days}%20días`)} />
                     <Minus size={20} color="#ef4444" onClick={() => adjustDays(biz.id, -30)} />
                     <Plus size={20} color="#22c55e" onClick={() => adjustDays(biz.id, 30)} />
-                    <Trash2 size={20} color="#64748b" />
+                    <Trash2 size={20} color="#64748b" onClick={async () => { if(confirm("¿Borrar?")) { await supabase.from("businesses").delete().eq("id", biz.id); fetchData(); } }} />
                   </div>
                 </div>
               );
@@ -156,14 +200,14 @@ export default function CalafatePlus() {
         </div>
       ) : (
         <>
-          <div style={{ margin: "15px 20px" }}>
+          <div style={{ margin: "0 20px 15px" }}>
              <input placeholder="Buscar negocio..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: "100%", padding: "12px 15px", borderRadius: "12px", background: "#0f172a", border: "none", color: "#fff" }} />
           </div>
 
           <div style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "0 20px 20px" }}>
             {categorias.map(cat => (
               <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{ whiteSpace: "nowrap", padding: "10px 15px", borderRadius: "20px", border: "none", background: activeCat === cat.id ? "#3b82f6" : "#0f172a", color: "#fff", fontWeight: "bold" }}>
-                {cat.label}
+                {typeof cat.icon === "string" ? cat.icon : cat.icon} {cat.label}
               </button>
             ))}
           </div>
@@ -179,12 +223,9 @@ export default function CalafatePlus() {
           </div>
 
           <main style={{ padding: "0 20px 40px" }}>
-             <div style={{ background: "linear-gradient(45deg, #0f172a, #1e293b)", padding: "20px", borderRadius: "20px", marginBottom: "20px", textAlign: "center", border: "1px solid #3b82f6" }}>
-                <h3 style={{ margin: "0 0 15px 0" }}>¿Querés sumar tu negocio?</h3>
-                <button onClick={() => window.open(`https://wa.me/${ADMIN_USER}`)} style={{ background: "#22c55e", color: "#fff", padding: "12px 25px", borderRadius: "10px", fontWeight: "bold", border: "none", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
-                   <MessageCircle size={20}/> CONTACTAME
-                </button>
-             </div>
+             <button onClick={() => setView("scanner")} style={{ width: "100%", background: "#3b82f6", color: "#fff", padding: "15px", borderRadius: "15px", fontWeight: "bold", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "20px" }}>
+                <Camera size={20}/> ESCANEAR QR EN LOCAL
+             </button>
 
             {filteredBiz.map(biz => (
               <div key={biz.id} style={{ background: "#0a1929", borderRadius: "20px", marginBottom: "15px", padding: "20px", border: "1px solid #1e293b" }}>
