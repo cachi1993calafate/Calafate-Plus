@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, X, MapPin, MessageCircle, Camera, CheckCircle, XCircle, Clock, Search, Star, Globe, Settings, LogOut } from "lucide-react";
+import { Download, X, MapPin, MessageCircle, Camera, CheckCircle, XCircle, Clock, Search, Star, Globe, Settings, LogOut, DollarSign } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
 const iconBiz = L.icon({
@@ -23,6 +23,9 @@ export default function CalafatePlus() {
   const [currentScannerId, setCurrentScannerId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  
+  // Filtro de Admin (Ver solo Vencidos)
+  const [adminFilter, setAdminFilter] = useState<"Todos" | "Activos" | "Vencidos">("Todos");
 
   const CATEGORIES = ["Todos", "Gastronomía", "Alojamiento", "Regalos", "Excursiones", "Otros"];
 
@@ -33,7 +36,7 @@ export default function CalafatePlus() {
   }, []);
 
   const fetchData = async () => {
-    const { data } = await supabase.from("businesses").select("*").order('is_featured', { ascending: false });
+    const { data } = await supabase.from("businesses").select("*").order('expires_at', { ascending: true });
     if (data) setBusinesses(data);
   };
 
@@ -50,13 +53,21 @@ export default function CalafatePlus() {
     fetchData();
   };
 
-  const add30Days = async (biz: any) => {
-    const currentExpiry = biz.expires_at ? new Date(biz.expires_at) : new Date();
+  const processPayment = async (biz: any) => {
+    // Si ya está activo, sumamos 30 días a la fecha de vencimiento actual.
+    // Si está vencido o no tiene fecha, sumamos 30 días a partir de hoy.
+    const now = new Date();
+    const currentExpiry = (biz.expires_at && new Date(biz.expires_at) > now) 
+      ? new Date(biz.expires_at) 
+      : now;
+    
     currentExpiry.setDate(currentExpiry.getDate() + 30);
+    
     const { error } = await supabase.from("businesses").update({ 
       expires_at: currentExpiry.toISOString().split('T')[0], 
       is_active: true 
     }).eq("id", biz.id);
+    
     if (!error) fetchData();
   };
 
@@ -66,11 +77,24 @@ export default function CalafatePlus() {
   };
 
   const filteredBiz = useMemo(() => {
-    return businesses.filter(b => 
-      (catFilter === "Todos" || b.category === catFilter) &&
-      (b.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [businesses, searchTerm, catFilter]);
+    const now = new Date();
+    return businesses.filter(b => {
+      // Filtros básicos de usuario
+      const matchesSearch = b.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = catFilter === "Todos" || b.category === catFilter;
+      
+      if (!matchesSearch || !matchesCategory) return false;
+
+      // Filtros avanzados de Admin
+      if (isAdmin) {
+        const isVencido = !b.expires_at || new Date(b.expires_at) < now;
+        if (adminFilter === "Activos") return !isVencido;
+        if (adminFilter === "Vencidos") return isVencido;
+      }
+
+      return true; // Si no es admin o adminFilter es 'Todos', mostrar
+    });
+  }, [businesses, searchTerm, catFilter, isAdmin, adminFilter]);
 
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
@@ -88,17 +112,22 @@ export default function CalafatePlus() {
     return () => { scanner?.clear().catch(() => {}); };
   }, [view, currentScannerId, businesses]);
 
-  // ESTILOS CORREGIDOS PARA TYPESCRIPT
-  const fullModal: CSSProperties = { position: "fixed", inset: 0, background: "#011627", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" };
-  const fullModalWhite: CSSProperties = { position: "fixed", inset: 0, background: "#fff", zIndex: 1000, color: "#000", padding: "30px", display: "flex", justifyContent: "center" };
-  const headerNav: CSSProperties = { display: "flex", justifyContent: "space-between", padding: "15px 20px" };
+  // ESTILOS PROFESIONALES
+  const fullModal: CSSProperties = { position: "fixed", inset: 0, background: "#011627", zIndex: 2000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" };
+  const fullModalWhite: CSSProperties = { position: "fixed", inset: 0, background: "#fff", zIndex: 2000, color: "#000", padding: "30px", display: "flex", justifyContent: "center" };
+  const headerNav: CSSProperties = { display: "flex", justifyContent: "space-between", padding: "15px 20px", alignItems: "center" };
   const bannerCard: CSSProperties = { margin: "15px", borderRadius: "25px", padding: "30px 20px", textAlign: "center", backgroundSize: "cover", backgroundPosition: "center" };
   const searchBar: CSSProperties = { background: "rgba(255,255,255,0.05)", borderRadius: "15px", padding: "10px 15px", display: "flex", alignItems: "center", marginBottom: "15px" };
   const catScroll: CSSProperties = { display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" };
-  const bizCard: CSSProperties = { background: "rgba(255,255,255,0.03)", borderRadius: "25px", marginBottom: "25px", overflow: "hidden", position: "relative" };
+  const bizCard: CSSProperties = { background: "rgba(255,255,255,0.03)", borderRadius: "25px", marginBottom: "25px", overflow: "hidden", position: "relative", border: "1px solid rgba(74,144,217,0.1)" };
   const discountTag: CSSProperties = { position: "absolute", top: "15px", right: "15px", background: "#e74c3c", color: "#fff", width: "55px", height: "55px", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900", zIndex: 5, fontSize: "14px" };
-  const adminStatus: CSSProperties = { position: "absolute", top: "15px", left: "15px", background: "rgba(0,0,0,0.8)", padding: "8px", borderRadius: "15px", zIndex: 5, display: "flex", alignItems: "center", gap: "8px" };
-  const adminPanel: CSSProperties = { margin: "15px", padding: "15px", background: "rgba(37,211,102,0.1)", borderRadius: "15px", border: "1px solid #25D366" };
+  
+  // Estilos de la Tabla Admin
+  const adminTable: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "13px", color: "#fff" };
+  const thStyle: CSSProperties = { borderBottom: "1px solid #333", padding: "12px", textAlign: "left", color: "#4A90D9" };
+  const trStyle: CSSProperties = { borderBottom: "1px solid #222" };
+  const tdStyle: CSSProperties = { padding: "12px" };
+  const btnRenew: CSSProperties = { background: "#25D366", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" };
 
   if (view === "scanner") return (
     <div style={fullModal}>
@@ -111,12 +140,13 @@ export default function CalafatePlus() {
   return (
     <div style={{ minHeight: "100vh", background: "#011627", color: "#fff", fontFamily: 'sans-serif' }}>
       
+      {/* BARRA SUPERIOR */}
       <div style={headerNav}>
         <Download size={24} color="#4A90D9" />
         {isAdmin ? (
           <div style={{display:"flex", gap:"15px", alignItems:"center"}}>
-            <Settings size={24} onClick={() => setShowConfig(true)} style={{cursor:"pointer"}} />
-            <LogOut size={24} color="#ff4757" onClick={() => {setIsAdmin(false); localStorage.removeItem("cachi_admin");}} style={{cursor:"pointer"}} />
+            <Settings size={22} onClick={() => setShowConfig(true)} style={{cursor:"pointer"}} />
+            <LogOut size={22} color="#ff4757" onClick={() => {setIsAdmin(false); localStorage.removeItem("cachi_admin");}} style={{cursor:"pointer"}} />
           </div>
         ) : (
           <button onClick={() => setView("login")} style={btnLogin}>ADMIN</button>
@@ -131,78 +161,133 @@ export default function CalafatePlus() {
         </h1>
       </header>
 
-      <div style={{...bannerCard, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${config.app_banner_url || 'https://images.unsplash.com/photo-1516939884455-1445c8652f83'})`}}>
-        <h2 style={{fontSize: "20px", margin: 0, fontWeight: "900"}}>TU PASE VIP EN LA CIUDAD</h2>
-        <button onClick={() => window.open(`https://wa.me/5492966694462`)} style={btnPrimary}>SUMAR MI COMERCIO</button>
-      </div>
+      {/* BANNER (SOLO PARA USUARIOS) */}
+      {!isAdmin && (
+        <div style={{...bannerCard, backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${config.app_banner_url || 'https://images.unsplash.com/photo-1516939884455-1445c8652f83'})`}}>
+          <h2 style={{fontSize: "20px", margin: 0, fontWeight: "900"}}>TU PASE VIP EN LA CIUDAD</h2>
+          <button onClick={() => window.open(`https://wa.me/5492966694462`)} style={btnPrimary}>SUMAR MI COMERCIO</button>
+        </div>
+      )}
 
-      <div style={{padding: "0 20px"}}>
+      {/* BUSCADOR Y CATEGORÍAS (COMÚN) */}
+      <div style={{padding: "0 20px 20px 20px"}}>
         <div style={searchBar}>
           <Search size={20} color="#777" />
-          <input placeholder="Buscar local..." onChange={e => setSearchTerm(e.target.value)} style={searchInput} />
+          <input placeholder="Buscar local por nombre..." onChange={e => setSearchTerm(e.target.value)} style={searchInput} />
         </div>
-        <div style={catScroll}>
-          {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} style={c === catFilter ? catBtnActive : catBtn}>{c}</button>
-          ))}
-        </div>
+        {!isAdmin && (
+          <div style={catScroll}>
+            {CATEGORIES.map(c => (
+              <button key={c} onClick={() => setCatFilter(c)} style={c === catFilter ? catBtnActive : catBtn}>{c}</button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* --- PANEL MAESTRO PRIVADO (SOLO ADMIN) --- */}
       {isAdmin && (
-        <div style={adminPanel}>
-          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-            <h3 style={{margin:0, color:"#25D366", fontSize: "16px"}}>Panel Maestro Activo</h3>
-            <button onClick={() => setShowForm(true)} style={btnGreenSmall}>+ NUEVO LOCAL</button>
+        <div style={{ padding: "0 20px 100px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h2 style={{ margin: 0, fontSize: "24px", color: "#fff" }}>Gestión de Comercios</h2>
+            <button onClick={() => setShowForm(true)} style={btnGreen}>+ NUEVO LOCAL</button>
+          </div>
+
+          {/* FILTROS DE ADMIN */}
+          <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+            <button onClick={() => setAdminFilter("Todos")} style={adminFilter === "Todos" ? catBtnActive : catBtn}>Todos ({businesses.length})</button>
+            <button onClick={() => setAdminFilter("Activos")} style={adminFilter === "Activos" ? btnGreenSmall : catBtn}>Activos ✔️</button>
+            <button onClick={() => setAdminFilter("Vencidos")} style={adminFilter === "Vencidos" ? btnDangerSmall : catBtn}>Vencidos ❌</button>
+          </div>
+
+          {/* TABLA DE GESTIÓN CENTRALIZADA */}
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "15px", padding: "10px", overflowX: "auto" }}>
+            <table style={adminTable}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Estado</th>
+                  <th style={thStyle}>Comercio</th>
+                  <th style={thStyle}>Días Left</th>
+                  <th style={thStyle}>Vencimiento</th>
+                  <th style={thStyle}>Scans QR</th>
+                  <th style={thStyle}>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBiz.map(biz => {
+                  const now = new Date();
+                  const daysLeft = biz.expires_at ? Math.ceil((new Date(biz.expires_at).getTime() - now.getTime()) / (1000*3600*24)) : 0;
+                  const active = daysLeft > 0;
+
+                  return (
+                    <tr key={biz.id} style={trStyle}>
+                      <td style={tdStyle}>
+                        {active ? <CheckCircle size={22} color="#25D366" /> : <XCircle size={22} color="#ff4757" />}
+                      </td>
+                      <td style={{...tdStyle, fontWeight: "bold"}}>
+                        {biz.name} {biz.is_featured && <Star size={14} color="#FFD700" fill="#FFD700" />}
+                      </td>
+                      <td style={{...tdStyle, color: daysLeft < 7 ? "#ff4757" : (daysLeft < 15 ? "#FFD700" : "#fff"), fontWeight: "bold"}}>
+                        {daysLeft}d
+                      </td>
+                      <td style={{...tdStyle, color: "#bbb"}}>
+                        {biz.expires_at ? new Date(biz.expires_at).toLocaleDateString() : 'Sin fecha'}
+                      </td>
+                      <td style={{...tdStyle, textAlign: "center", color: "#4A90D9", fontWeight: "bold"}}>
+                        {biz.clicks_qr || 0}
+                      </td>
+                      <td style={tdStyle}>
+                        <button onClick={() => processPayment(biz)} style={btnRenew}>
+                          <DollarSign size={14}/> Cobrar y Activar ✔️
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredBiz.length === 0 && <p style={{textAlign:"center", padding:"30px", color:"#777"}}>No hay comercios que coincidan con el filtro.</p>}
           </div>
         </div>
       )}
 
-      <main style={{ padding: "20px 15px 100px 15px", maxWidth: "600px", margin: "0 auto" }}>
-        {filteredBiz.map(biz => {
-          const daysLeft = biz.expires_at ? Math.ceil((new Date(biz.expires_at).getTime() - new Date().getTime()) / (1000*3600*24)) : 0;
-          const active = daysLeft > 0;
-          if (!active && !isAdmin) return null;
+      {/* --- MODO TURISTA (SOLO USUARIOS) --- */}
+      {!isAdmin && (
+        <main style={{ padding: "0 15px 100px 15px", maxWidth: "600px", margin: "0 auto" }}>
+          {filteredBiz.map(biz => {
+            const now = new Date();
+            const daysLeft = biz.expires_at ? Math.ceil((new Date(biz.expires_at).getTime() - now.getTime()) / (1000*3600*24)) : 0;
+            const active = daysLeft > 0;
+            if (!active) return null; // El turista NO ve locales vencidos.
 
-          return (
-            <div key={biz.id} style={{...bizCard, border: biz.is_featured ? "2px solid #FFD700" : "1px solid rgba(74,144,217,0.1)"}}>
-              <div style={discountTag}>{biz.discount_short || '10%'}</div>
-              
-              {isAdmin && (
-                <div style={adminStatus}>
-                  {active ? <CheckCircle size={18} color="#25D366"/> : <XCircle size={18} color="#ff4757"/>}
-                  <span style={{fontSize:"11px", fontWeight:"bold", color: daysLeft < 5 ? "#ff4757" : "#fff"}}>{daysLeft}d</span>
-                  <button onClick={() => add30Days(biz)} style={btnRenew}>+30 DÍAS</button>
-                  <div style={{fontSize: "10px", borderLeft: "1px solid #444", paddingLeft: "8px", display: "flex", gap: "5px"}}>
-                     <Camera size={12}/>{biz.clicks_qr || 0}
+            return (
+              <div key={biz.id} style={{...bizCard, border: biz.is_featured ? "2px solid #FFD700" : "1px solid rgba(74,144,217,0.1)"}}>
+                <div style={discountTag}>{biz.discount_short || '10%'}</div>
+                <img src={biz.image_url || 'https://via.placeholder.com/400x200'} style={{width:"100%", height:"180px", objectFit:"cover"}} alt={biz.name} />
+                <div style={{padding: "15px"}}>
+                  <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
+                    <h3 style={{margin:0, fontSize: "20px"}}>{biz.name}</h3>
+                    {biz.is_featured && <Star size={16} color="#FFD700" fill="#FFD700" />}
+                  </div>
+                  <p style={{color: "#bbb", fontSize: "13px", margin: "8px 0 15px 0"}}>{biz.offer_es}</p>
+                  
+                  <button onClick={() => {setCurrentScannerId(`r-${biz.id}`); setView("scanner");}} style={btnQR}>
+                    <Camera size={18}/> ACCEDER A LA PROMO (QR)
+                  </button>
+
+                  <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px"}}>
+                    <button onClick={() => {handleAction(biz.id, 'total_clicks', biz.total_clicks); window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`)}} style={btnWhite}>📍 MAPA</button>
+                    <button onClick={() => {handleAction(biz.id, 'total_clicks', biz.total_clicks); window.open(biz.link_url ? biz.link_url : `https://wa.me/${biz.phone}`)}} style={btnOutline}>
+                      {biz.link_url ? <Globe size={18}/> : <MessageCircle size={18}/>} {biz.link_url ? 'WEB' : 'WHATSAPP'}
+                    </button>
                   </div>
                 </div>
-              )}
-
-              <img src={biz.image_url || 'https://via.placeholder.com/400x200'} style={{width:"100%", height:"180px", objectFit:"cover", opacity: active ? 1 : 0.4}} alt={biz.name} />
-              
-              <div style={{padding: "15px"}}>
-                <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
-                  <h3 style={{margin:0, fontSize: "20px"}}>{biz.name}</h3>
-                  {biz.is_featured && <Star size={16} color="#FFD700" fill="#FFD700" />}
-                </div>
-                <p style={{color: "#bbb", fontSize: "13px", margin: "8px 0 15px 0"}}>{biz.offer_es}</p>
-                
-                <button onClick={() => {setCurrentScannerId(`r-${biz.id}`); setView("scanner");}} style={btnQR}>
-                  <Camera size={18}/> ACCEDER A LA PROMO
-                </button>
-
-                <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px"}}>
-                  <button onClick={() => {handleAction(biz.id, 'total_clicks', biz.total_clicks); window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`)}} style={btnWhite}>📍 MAPA</button>
-                  <button onClick={() => {handleAction(biz.id, 'total_clicks', biz.total_clicks); window.open(biz.link_url ? biz.link_url : `https://wa.me/${biz.phone}`)}} style={btnOutline}>
-                    {biz.link_url ? <Globe size={18}/> : <MessageCircle size={18}/>} {biz.link_url ? 'WEB' : 'WHATSAPP'}
-                  </button>
-                </div>
               </div>
-            </div>
-          );
-        })}
-      </main>
+            );
+          })}
+        </main>
+      )}
 
+      {/* --- MODALES Y LOGIN (COMÚN) --- */}
       {showConfig && (
         <div style={fullModalWhite}>
           <div style={{width:"100%", maxWidth:"400px"}}>
@@ -233,18 +318,19 @@ export default function CalafatePlus() {
   );
 }
 
-// BOTONES Y OTROS ESTILOS
+// ESTILOS DE BOTONES ADICIONALES
 const btnLogin: CSSProperties = { background: "rgba(74,144,217,0.1)", color: "#4A90D9", border: "1px solid #4A90D9", padding: "5px 15px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px" };
 const btnPrimary: CSSProperties = { background: "#FFD700", color: "#000", border: "none", padding: "10px 20px", borderRadius: "10px", fontWeight: "900", marginTop: "12px", fontSize: "14px" };
 const btnPrimaryFull: CSSProperties = { width: "100%", background: "#4A90D9", color: "#fff", padding: "15px", borderRadius: "12px", border: "none", fontWeight: "900", marginTop: "10px" };
 const searchInput: CSSProperties = { background: "none", border: "none", color: "#fff", marginLeft: "10px", width: "100%", outline: "none" };
-const catBtn: CSSProperties = { background: "rgba(255,255,255,0.05)", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "10px", whiteSpace: "nowrap", fontSize: "13px" };
-const catBtnActive: CSSProperties = { background: "#4A90D9", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "10px", whiteSpace: "nowrap", fontWeight: "bold", fontSize: "13px" };
-const btnRenew: CSSProperties = { background: "#25D366", color: "#fff", border: "none", padding: "3px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: "bold", cursor: "pointer" };
+const catBtn: CSSProperties = { background: "rgba(255,255,255,0.05)", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "10px", whiteSpace: "nowrap", fontSize: "13px", cursor: "pointer" };
+const catBtnActive: CSSProperties = { background: "#4A90D9", border: "none", color: "#fff", padding: "8px 15px", borderRadius: "10px", whiteSpace: "nowrap", fontWeight: "bold", fontSize: "13px", cursor: "pointer" };
+const btnGreen: CSSProperties = { background: "#25D366", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" };
+const btnGreenSmall: CSSProperties = { background: "#25D366", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "10px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" };
+const btnDangerSmall: CSSProperties = { background: "#e74c3c", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "10px", fontWeight: "bold", fontSize: "13px", cursor: "pointer" };
 const btnQR: CSSProperties = { width: "100%", background: "#25D366", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "900", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" };
 const btnWhite: CSSProperties = { background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "14px" };
 const btnOutline: CSSProperties = { background: "none", border: "1px solid #25D366", color: "#25D366", padding: "12px", borderRadius: "12px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px", fontSize: "14px" };
 const inStyle: CSSProperties = { width: "100%", padding: "15px", margin: "10px 0", borderRadius: "12px", border: "1px solid #ccc", color: "#000", boxSizing: "border-box" };
 const lab: CSSProperties = { fontSize: "12px", fontWeight: "bold", color: "#666", display: "block", marginTop: "10px" };
-const btnGreenSmall: CSSProperties = { background: "#25D366", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" };
 const btnDanger: CSSProperties = { marginTop: "30px", background: "#e74c3c", color: "#fff", border: "none", padding: "15px 40px", borderRadius: "12px", fontWeight: "bold" };
