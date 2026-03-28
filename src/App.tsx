@@ -6,7 +6,7 @@ import L from "leaflet";
 import { Download, Camera, Search, LogOut, Settings, Trash2, RotateCcw, Edit2, X, Bell, BarChart3, PlusCircle } from "lucide-react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
-// --- ICONOS PERSONALIZADOS ---
+// --- ICONOS ---
 const getBizIcon = (category: string) => {
   let color = "#3b82f6"; let iconHtml = "📍";
   const cat = category ? category.toLowerCase().trim() : "";
@@ -76,9 +76,9 @@ export default function CalafatePlus() {
     fetchData();
   };
 
-  // --- FUNCIONES ADMIN ---
+  // --- FUNCIONES ADMIN (IMPORTANTE PARA VERCEL) ---
   const handleSaveBusiness = async () => {
-    if(!newBiz.name || !newBiz.phone) return alert("Faltan datos obligatorios");
+    if(!newBiz.name || !newBiz.phone) return alert("Faltan datos");
     if (editingId) {
       await supabase.from("businesses").update(newBiz).eq("id", editingId);
       setEditingId(null);
@@ -97,7 +97,7 @@ export default function CalafatePlus() {
   };
 
   const deleteBusiness = async (id: string, name: string) => {
-    if(window.confirm(`¿Seguro que querés eliminar "${name}"?`)){
+    if(window.confirm(`¿Borrar definitivamente "${name}"?`)){
         await supabase.from("businesses").delete().eq("id", id);
         fetchData();
     }
@@ -112,11 +112,10 @@ export default function CalafatePlus() {
   };
 
   const sendReminder = (biz: any) => {
-    const msg = `Hola ${biz.name}! Te escribimos de Calafate Plus. Tu suscripción vence pronto y queríamos avisarte para que no pierdas tus beneficios.`;
+    const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto. ¡No te quedes fuera!`;
     window.open(`https://wa.me/549${biz.phone}?text=${encodeURIComponent(msg)}`);
   };
 
-  // --- LÓGICA FILTROS ---
   const publicBiz = useMemo(() => {
     const now = new Date();
     return businesses.filter(b => {
@@ -147,7 +146,7 @@ export default function CalafatePlus() {
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* HEADER SUPERIOR */}
+      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center" }}>
         <Download size={24} color="#3b82f6" onClick={() => installPrompt?.prompt()} />
         {isAdmin ? (
@@ -172,7 +171,7 @@ export default function CalafatePlus() {
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
-          {/* CARTEL PRINCIPAL DE CONTACTO */}
+          {/* CARTEL DE CONTACTO REINSTAURADO */}
           <div style={{ margin: "20px", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: "25px", padding: "20px", border: "1px solid #3b82f6", textAlign: "center" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "18px", color: "#fff" }}>¿Querés que tu negocio aparezca acá?</h2>
             <button onClick={() => window.open('https://wa.me/5492902404040')} style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "10px 25px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
@@ -180,7 +179,6 @@ export default function CalafatePlus() {
             </button>
           </div>
 
-          {/* MAPA */}
           <div style={{ height: "250px", margin: "20px", borderRadius: "25px", overflow: "hidden", border: "1px solid #1e293b" }}>
             <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
@@ -193,20 +191,13 @@ export default function CalafatePlus() {
             </MapContainer>
           </div>
 
-          {/* BUSCADOR Y CATEGORÍAS */}
           <div style={{ padding: "0 20px" }}>
             <div style={{ background: "#0f172a", borderRadius: "15px", padding: "12px 15px", display: "flex", alignItems: "center", marginBottom: "15px", border: "1px solid #1e293b" }}>
               <Search size={20} color="#64748b" />
               <input placeholder="Buscar por nombre..." onChange={e => setSearchTerm(e.target.value)} style={{ background: "none", border: "none", color: "#fff", marginLeft: "10px", width: "100%", outline: "none" }} />
             </div>
-            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
-              {DISPLAY_CATEGORIES.map(c => (
-                <button key={c.db} onClick={() => setCatFilter(c.db)} style={{ background: c.db === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c.label}</button>
-              ))}
-            </div>
           </div>
 
-          {/* LISTADO DE TARJETAS */}
           <main style={{ padding: "20px" }}>
             {publicBiz.map(biz => (
               <div key={biz.id} style={{ background: "#0a1929", borderRadius: "25px", marginBottom: "25px", padding: "20px", border: "1px solid #1e293b", position: "relative" }}>
@@ -232,18 +223,16 @@ export default function CalafatePlus() {
           <div style={{ background: "#0f172a", borderRadius: "20px", padding: "20px", marginBottom: "30px", border: "1px solid #3b82f6" }}>
             <div style={{ display: "grid", gap: "10px" }}>
               <input value={newBiz.name} placeholder="Nombre del Local" onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <input value={newBiz.offer_es} placeholder="Promoción (Ej: 2x1 en Pintas)" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              <input value={newBiz.phone} placeholder="WhatsApp (Ej: 2902404040)" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
-              
+              <input value={newBiz.offer_es} placeholder="Promoción" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              <input value={newBiz.phone} placeholder="WhatsApp" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div style={{fontSize:"11px", color:"#94a3b8"}}>Latitud: <input type="number" step="0.000001" value={newBiz.lat} onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ width:"100%", padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff", marginTop:"5px" }} /></div>
-                  <div style={{fontSize:"11px", color:"#94a3b8"}}>Longitud: <input type="number" step="0.000001" value={newBiz.lng} onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ width:"100%", padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff", marginTop:"5px" }} /></div>
+                  <input type="number" step="0.000001" value={newBiz.lat} placeholder="Latitud" onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+                  <input type="number" step="0.000001" value={newBiz.lng} placeholder="Longitud" onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               </div>
-
-              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold", marginTop: "10px" }}>
+              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold" }}>
                 {editingId ? "GUARDAR CAMBIOS" : "CREAR LOCAL"}
               </button>
-              {editingId && <button onClick={() => {setEditingId(null); setNewBiz({name:"", category:"shopping", phone:"", offer_es:"", discount_pct:10, lat:-50.338, lng:-72.263, is_active:true});}} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none", marginTop: "5px" }}><X size={18}/></button>}
+              {editingId && <button onClick={() => setEditingId(null)} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none" }}><X size={18}/></button>}
             </div>
           </div>
 
@@ -253,7 +242,7 @@ export default function CalafatePlus() {
               <thead>
                 <tr style={{ color: "#64748b", borderBottom: "1px solid #1e293b", fontSize: "11px" }}>
                   <th align="left" style={{ padding: "10px" }}>NEGOCIO</th>
-                  <th align="center" style={{ padding: "10px" }}>ESTADÍSTICAS</th>
+                  <th align="center" style={{ padding: "10px" }}>STATS</th>
                   <th align="right" style={{ padding: "10px" }}>ACCIONES</th>
                 </tr>
               </thead>
