@@ -89,6 +89,27 @@ export default function CalafatePlus() {
     setNewBiz({ name: "", category: "shopping", phone: "", offer_es: "", discount_pct: 10, lat: -50.338, lng: -72.263, is_active: true });
   };
 
+  const startEdit = (biz: any) => {
+    setEditingId(biz.id);
+    setNewBiz({ name: biz.name, category: biz.category, phone: biz.phone, offer_es: biz.offer_es, discount_pct: biz.discount_pct, lat: biz.lat, lng: biz.lng, is_active: biz.is_active });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const deleteBusiness = async (id: string, name: string) => {
+    if(window.confirm(`¿Borrar definitivamente "${name}"?`)){
+        await supabase.from("businesses").delete().eq("id", id);
+        fetchData();
+    }
+  };
+
+  const subtractPayment = async (biz: any) => {
+    if(!biz.expires_at) return;
+    const currentExpiry = new Date(biz.expires_at);
+    currentExpiry.setDate(currentExpiry.getDate() - 30);
+    await supabase.from("businesses").update({ expires_at: currentExpiry.toISOString().split('T')[0] }).eq("id", biz.id);
+    fetchData();
+  };
+
   const sendReminder = (biz: any) => {
     const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto. ¡No te quedes fuera de los beneficios!`;
     window.open(`https://wa.me/549${biz.phone}?text=${encodeURIComponent(msg)}`);
@@ -149,7 +170,6 @@ export default function CalafatePlus() {
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
-          {/* CARTEL DE CONTACTO (SUMÁ TU NEGOCIO) */}
           <div style={{ margin: "20px", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: "25px", padding: "20px", border: "1px solid #3b82f6", textAlign: "center" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "18px", color: "#fff" }}>¿Querés que tu negocio aparezca acá?</h2>
             <button onClick={() => window.open('https://wa.me/5492902404040')} style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "10px 25px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
@@ -191,7 +211,7 @@ export default function CalafatePlus() {
                   <Camera size={20}/> ACCEDER A LA PROMO
                 </button>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`http://maps.google.com/?q=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
+                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
                   <button onClick={() => {trackClick(biz.id, "clicks_wa", biz.clicks_wa); window.open(`https://wa.me/549${biz.phone}`);}} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold" }}>WHATSAPP</button>
                 </div>
               </div>
