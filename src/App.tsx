@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useMemo, CSSProperties } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, MessageCircle, Camera, Search, LogOut } from "lucide-react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Download, MessageCircle, Search, LogOut } from "lucide-react";
 
-// --- ICONOS CON TUS 8 CATEGORÍAS ---
+// --- MAPEO DE TUS CATEGORÍAS REALES EN SUPABASE ---
 const getBizIcon = (category: string) => {
-  let color = "#3b82f6"; 
-  let iconHtml = "📍";
-  const cat = category ? category.trim() : "";
+  let color = "#64748b"; 
+  let iconHtml = "📦";
+  const cat = category ? category.toLowerCase().trim() : "";
 
-  if (cat === "Gastronomía") { color = "#ef4444"; iconHtml = "🍽️"; }
-  else if (cat === "Compras") { color = "#facc15"; iconHtml = "🛒"; }
-  else if (cat === "Servicios") { color = "#06b6d4"; iconHtml = "🛠️"; }
-  else if (cat === "Construcción") { color = "#94a3b8"; iconHtml = "🏗️"; }
-  else if (cat === "Cuidado personal") { color = "#f472b6"; iconHtml = "✂️"; }
-  else if (cat === "Regalería") { color = "#ec4899"; iconHtml = "🎁"; }
-  else if (cat === "Emprendedores") { color = "#8b5cf6"; iconHtml = "🚀"; }
-  else { color = "#64748b"; iconHtml = "📦"; } 
+  // Aquí conectamos lo que dice tu Supabase con tus emojis
+  if (cat === "gastronomy") { color = "#ef4444"; iconHtml = "🍽️"; }
+  else if (cat === "shopping") { color = "#facc15"; iconHtml = "🛒"; }
+  else if (cat === "services" || cat === "servicios") { color = "#06b6d4"; iconHtml = "🛠️"; }
+  else if (cat === "construction" || cat === "construcción") { color = "#94a3b8"; iconHtml = "🏗️"; }
+  else if (cat === "personal care" || cat === "cuidado personal") { color = "#f472b6"; iconHtml = "✂️"; }
+  else if (cat === "gifts" || cat === "regalería") { color = "#ec4899"; iconHtml = "🎁"; }
+  else if (cat === "emprendimiento" || cat === "entrepreneur") { color = "#8b5cf6"; iconHtml = "🚀"; }
+  else if (cat === "experiences") { color = "#10b981"; iconHtml = "🏔️"; } 
 
   return L.divIcon({
     html: `<div style="background-color: ${color}; width: 38px; height: 38px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4);">
@@ -53,7 +53,7 @@ function MapController({ markers, center }: { markers: any[], center: [number, n
 
 export default function CalafatePlus() {
   const [businesses, setBusinesses] = useState<any[]>([]);
-  const [view, setView] = useState<"user" | "login" | "scanner">("user");
+  const [view, setView] = useState<"user" | "login">("user");
   const [searchTerm, setSearchTerm] = useState("");
   const [catFilter, setCatFilter] = useState("Todos");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -63,8 +63,18 @@ export default function CalafatePlus() {
   const defaultCenter: [number, number] = [-50.338, -72.263];
   const userLocation: [number, number] = [-50.336, -72.260]; 
 
-  // TUS 8 CATEGORÍAS
-  const CATEGORIES = ["Todos", "Gastronomía", "Compras", "Servicios", "Construcción", "Cuidado personal", "Regalería", "Emprendedores", "Varios"];
+  // Botones con los nombres que querés mostrar al usuario
+  const DISPLAY_CATEGORIES = [
+    { label: "Todos", db: "Todos" },
+    { label: "Gastronomía", db: "gastronomy" },
+    { label: "Compras", db: "shopping" },
+    { label: "Servicios", db: "services" },
+    { label: "Construcción", db: "construction" },
+    { label: "Cuidado personal", db: "personal care" },
+    { label: "Regalería", db: "gifts" },
+    { label: "Emprendedores", db: "emprendimiento" },
+    { label: "Varios", db: "varios" }
+  ];
 
   useEffect(() => {
     fetchData();
@@ -84,16 +94,18 @@ export default function CalafatePlus() {
   };
 
   const openWhatsApp = (phone: string) => {
+    if (!phone) return;
     let cleanNumber = phone.replace(/\D/g, "");
     if (!cleanNumber.startsWith("54")) cleanNumber = "549" + cleanNumber;
     window.open(`https://wa.me/${cleanNumber}`, "_blank");
   };
 
   const filteredBiz = useMemo(() => {
-    return businesses.filter(b => 
-      (catFilter === "Todos" || b.category === catFilter) &&
-      (b.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    return businesses.filter(b => {
+      const matchesSearch = b.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCat = catFilter === "Todos" || (b.category && b.category.toLowerCase() === catFilter.toLowerCase());
+      return matchesSearch && matchesCat;
+    });
   }, [businesses, searchTerm, catFilter]);
 
   const mapMarkers = useMemo(() => filteredBiz.filter(b => b.lat && b.lng), [filteredBiz]);
@@ -112,7 +124,7 @@ export default function CalafatePlus() {
         <h1 style={{ margin: 0, fontSize: "42px", fontWeight: "900" }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
       </header>
 
-      {/* MAPA */}
+      {/* MAPA MÁS CLARO */}
       <div style={{ height: "280px", margin: "15px", borderRadius: "25px", overflow: "hidden", border: "2px solid #1e293b" }}>
         <MapContainer center={defaultCenter} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
@@ -138,8 +150,8 @@ export default function CalafatePlus() {
           <input placeholder="¿Qué buscas hoy?" onChange={e => setSearchTerm(e.target.value)} style={{ background: "none", border: "none", color: "#fff", marginLeft: "10px", width: "100%", outline: "none" }} />
         </div>
         <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
-          {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} style={{ background: c === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c}</button>
+          {DISPLAY_CATEGORIES.map(c => (
+            <button key={c.db} onClick={() => setCatFilter(c.db)} style={{ background: c.db === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c.label}</button>
           ))}
         </div>
       </div>
@@ -153,17 +165,17 @@ export default function CalafatePlus() {
             <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 15px 0" }}>{biz.offer_es}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <button onClick={() => openWhatsApp(biz.phone)} style={{ background: "#22c55e", color: "#fff", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold" }}>WHATSAPP</button>
-              <button onClick={() => window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold" }}>UBICACIÓN</button>
+              <button onClick={() => window.open(`http://googleusercontent.com/maps.google.com/?q=${biz.lat},${biz.lng}`)} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "12px", border: "none", fontWeight: "bold" }}>UBICACIÓN</button>
             </div>
           </div>
         )) : (
           <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>
-            <p>Todavía no hay locales cargados en esta categoría.</p>
+            <p>No hay locales cargados en esta categoría.</p>
           </div>
         )}
       </main>
-
-      {/* LOGIN */}
+      
+      {/* LOGIN PANEL */}
       {view === "login" && (
         <div style={{ position: "fixed", inset: 0, background: "#010b14", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: "85%", textAlign: "center" }}>
