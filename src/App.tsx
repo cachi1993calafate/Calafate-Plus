@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Download, Camera, Settings, Trash2, Search, LayoutGrid, Bell, Plus, Minus, LogOut, ArrowLeft, User, Lock } from "lucide-react";
+import { Download, Camera, Settings, Trash2, MessageCircle, Search, LayoutGrid, Bell, Plus, Minus, LogOut, ArrowLeft, User, Lock } from "lucide-react";
 
 // --- CONFIGURACIÓN DE ICONOS ---
 const userIcon = L.divIcon({
@@ -193,7 +193,7 @@ export default function CalafatePlus() {
                    <span style={{ color: "#ef4444", fontWeight: "bold" }}>{biz.discount_pct}% OFF</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "15px" }}>
-                  <button onClick={() => { trackClick(biz.id, 'map_clicks'); window.open(`http://maps.google.com/?q=${biz.lat},${biz.lng}`); }} style={{ background: "#fff", padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none" }}>UBICACIÓN</button>
+                  <button onClick={() => { trackClick(biz.id, 'map_clicks'); window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`); }} style={{ background: "#fff", padding: "12px", borderRadius: "10px", fontWeight: "bold", border: "none" }}>UBICACIÓN</button>
                   <button onClick={() => { trackClick(biz.id, 'wa_clicks'); window.open(`https://wa.me/549${biz.phone}`); }} style={{ background: "#22c55e", padding: "12px", borderRadius: "10px", fontWeight: "bold", color: "#fff", border: "none" }}>WHATSAPP</button>
                 </div>
               </div>
