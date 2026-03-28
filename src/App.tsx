@@ -76,7 +76,7 @@ export default function CalafatePlus() {
     fetchData();
   };
 
-  // --- FUNCIONES ADMIN (FUNDAMENTALES PARA VERCEL) ---
+  // --- FUNCIONES SOPORTE (OBLIGATORIAS PARA EVITAR ERROR TS2304) ---
   const handleSaveBusiness = async () => {
     if(!newBiz.name || !newBiz.phone) return alert("Faltan datos");
     if (editingId) {
@@ -97,7 +97,7 @@ export default function CalafatePlus() {
   };
 
   const deleteBusiness = async (id: string, name: string) => {
-    if(window.confirm(`¿Borrar definitivamente "${name}"?`)){
+    if(window.confirm(`¿Eliminar definitivamente "${name}"?`)){
         await supabase.from("businesses").delete().eq("id", id);
         fetchData();
     }
@@ -112,7 +112,7 @@ export default function CalafatePlus() {
   };
 
   const sendReminder = (biz: any) => {
-    const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto.`;
+    const msg = `Hola ${biz.name}! Te escribimos de Calafate Plus. Tu suscripción está por vencer.`;
     window.open(`https://wa.me/549${biz.phone}?text=${encodeURIComponent(msg)}`);
   };
 
@@ -146,7 +146,7 @@ export default function CalafatePlus() {
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: 'sans-serif' }}>
       
-      {/* HEADER */}
+      {/* HEADER PRINCIPAL */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "20px", alignItems: "center" }}>
         <Download size={24} color="#3b82f6" onClick={() => installPrompt?.prompt()} />
         {isAdmin ? (
@@ -171,7 +171,7 @@ export default function CalafatePlus() {
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
-          {/* CARTEL DE CONTACTO PARA WHATSAPP */}
+          {/* --- CARTEL DE CONTACTO (EL QUE FALTABA) --- */}
           <div style={{ margin: "20px", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: "25px", padding: "20px", border: "1px solid #3b82f6", textAlign: "center" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "18px", color: "#fff" }}>¿Querés que tu negocio aparezca acá?</h2>
             <button onClick={() => window.open('https://wa.me/5492902404040')} style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "10px 25px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
@@ -196,6 +196,11 @@ export default function CalafatePlus() {
               <Search size={20} color="#64748b" />
               <input placeholder="Buscar por nombre..." onChange={e => setSearchTerm(e.target.value)} style={{ background: "none", border: "none", color: "#fff", marginLeft: "10px", width: "100%", outline: "none" }} />
             </div>
+            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
+              {DISPLAY_CATEGORIES.map(c => (
+                <button key={c.db} onClick={() => setCatFilter(c.db)} style={{ background: c.db === catFilter ? "#3b82f6" : "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "12px", whiteSpace: "nowrap", fontWeight: "bold" }}>{c.label}</button>
+              ))}
+            </div>
           </div>
 
           <main style={{ padding: "20px" }}>
@@ -208,7 +213,7 @@ export default function CalafatePlus() {
                   <Camera size={20}/> ACCEDER A LA PROMO
                 </button>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
+                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
                   <button onClick={() => {trackClick(biz.id, "clicks_wa", biz.clicks_wa); window.open(`https://wa.me/549${biz.phone}`);}} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold" }}>WHATSAPP</button>
                 </div>
               </div>
@@ -216,23 +221,25 @@ export default function CalafatePlus() {
           </main>
         </>
       ) : (
-        /* --- PANEL ADMIN CORREGIDO --- */
+        /* --- PANEL ADMIN (SIN BOTÓN GPS Y CON COLUMNA QR) --- */
         <div style={{ padding: "20px" }}>
-          <h2 style={{ fontSize: "32px", fontWeight: "900", color: "#fbbf24", marginBottom: "20px" }}>{editingId ? "Editando Local" : "Nuevo Local"}</h2>
+          <h2 style={{ fontSize: "32px", fontWeight: "900", color: "#fbbf24", marginBottom: "20px" }}>CONTROL TOTAL</h2>
           
           <div style={{ background: "#0f172a", borderRadius: "20px", padding: "20px", marginBottom: "30px", border: "1px solid #3b82f6" }}>
             <div style={{ display: "grid", gap: "10px" }}>
               <input value={newBiz.name} placeholder="Nombre del Local" onChange={e => setNewBiz({...newBiz, name: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               <input value={newBiz.offer_es} placeholder="Promoción" onChange={e => setNewBiz({...newBiz, offer_es: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               <input value={newBiz.phone} placeholder="WhatsApp" onChange={e => setNewBiz({...newBiz, phone: e.target.value})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
+              
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   <input type="number" step="0.000001" value={newBiz.lat} placeholder="Latitud" onChange={e => setNewBiz({...newBiz, lat: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
                   <input type="number" step="0.000001" value={newBiz.lng} placeholder="Longitud" onChange={e => setNewBiz({...newBiz, lng: parseFloat(e.target.value)})} style={{ padding: "12px", borderRadius: "10px", background: "#010b14", border: "1px solid #1e293b", color: "#fff" }} />
               </div>
-              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold" }}>
+
+              <button onClick={handleSaveBusiness} style={{ background: "#3b82f6", color: "#fff", padding: "14px", borderRadius: "10px", border: "none", fontWeight: "bold", marginTop: "10px" }}>
                 {editingId ? "GUARDAR CAMBIOS" : "CREAR LOCAL"}
               </button>
-              {editingId && <button onClick={() => setEditingId(null)} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none" }}><X size={18}/></button>}
+              {editingId && <button onClick={() => setEditingId(null)} style={{ background: "#ef4444", padding: "10px", borderRadius: "10px", border: "none", marginTop: "5px" }}><X size={18}/></button>}
             </div>
           </div>
 
