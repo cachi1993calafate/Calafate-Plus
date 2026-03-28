@@ -76,7 +76,7 @@ export default function CalafatePlus() {
     fetchData();
   };
 
-  // --- FUNCIONES ADMIN (IMPORTANTE PARA VERCEL) ---
+  // --- FUNCIONES ADMIN (FUNDAMENTALES PARA VERCEL) ---
   const handleSaveBusiness = async () => {
     if(!newBiz.name || !newBiz.phone) return alert("Faltan datos");
     if (editingId) {
@@ -112,7 +112,7 @@ export default function CalafatePlus() {
   };
 
   const sendReminder = (biz: any) => {
-    const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto. ¡No te quedes fuera!`;
+    const msg = `Hola ${biz.name}! Te avisamos de Calafate Plus que tu suscripción vence pronto.`;
     window.open(`https://wa.me/549${biz.phone}?text=${encodeURIComponent(msg)}`);
   };
 
@@ -171,7 +171,7 @@ export default function CalafatePlus() {
             <h1 style={{ margin: 0, fontSize: "45px", fontWeight: "900", lineHeight: 0.9 }}>CALAFATE <span style={{ color: "#fbbf24" }}>PLUS</span></h1>
           </header>
 
-          {/* CARTEL DE CONTACTO REINSTAURADO */}
+          {/* CARTEL DE CONTACTO PARA WHATSAPP */}
           <div style={{ margin: "20px", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", borderRadius: "25px", padding: "20px", border: "1px solid #3b82f6", textAlign: "center" }}>
             <h2 style={{ margin: "0 0 10px 0", fontSize: "18px", color: "#fff" }}>¿Querés que tu negocio aparezca acá?</h2>
             <button onClick={() => window.open('https://wa.me/5492902404040')} style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "10px 25px", borderRadius: "15px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px", margin: "0 auto" }}>
@@ -208,7 +208,7 @@ export default function CalafatePlus() {
                   <Camera size={20}/> ACCEDER A LA PROMO
                 </button>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps?q=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
+                  <button onClick={() => {trackClick(biz.id, "clicks_map", biz.clicks_map); window.open(`https://www.google.com/maps/search/?api=1&query=${biz.lat},${biz.lng}`);}} style={{ background: "#fff", color: "#000", padding: "12px", borderRadius: "15px", border: "none", fontWeight: "bold" }}>📍 MAPA</button>
                   <button onClick={() => {trackClick(biz.id, "clicks_wa", biz.clicks_wa); window.open(`https://wa.me/549${biz.phone}`);}} style={{ background: "none", border: "1.5px solid #22c55e", color: "#22c55e", padding: "12px", borderRadius: "15px", fontWeight: "bold" }}>WHATSAPP</button>
                 </div>
               </div>
@@ -216,7 +216,7 @@ export default function CalafatePlus() {
           </main>
         </>
       ) : (
-        /* --- PANEL ADMIN MAESTRO --- */
+        /* --- PANEL ADMIN CORREGIDO --- */
         <div style={{ padding: "20px" }}>
           <h2 style={{ fontSize: "32px", fontWeight: "900", color: "#fbbf24", marginBottom: "20px" }}>{editingId ? "Editando Local" : "Nuevo Local"}</h2>
           
@@ -236,13 +236,13 @@ export default function CalafatePlus() {
             </div>
           </div>
 
-          <h3 style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}><BarChart3 color="#22c55e"/> Métrica: WA / MAP / QR</h3>
+          <h3 style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}><BarChart3 color="#22c55e"/> Métricas: WA / MAP / QR</h3>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "400px" }}>
               <thead>
                 <tr style={{ color: "#64748b", borderBottom: "1px solid #1e293b", fontSize: "11px" }}>
                   <th align="left" style={{ padding: "10px" }}>NEGOCIO</th>
-                  <th align="center" style={{ padding: "10px" }}>STATS</th>
+                  <th align="center" style={{ padding: "10px" }}>W / M / Q</th>
                   <th align="right" style={{ padding: "10px" }}>ACCIONES</th>
                 </tr>
               </thead>
@@ -253,7 +253,7 @@ export default function CalafatePlus() {
                     <tr key={biz.id} style={{ borderBottom: "1px solid #1e293b" }}>
                       <td style={{ padding: "12px 5px" }}>
                         <div style={{ fontWeight: "bold", fontSize: "13px" }}>{biz.name}</div>
-                        <div style={{ fontSize: "10px", color: days <= 5 ? "#ef4444" : "#94a3b8" }}>{days} días rest.</div>
+                        <div style={{ fontSize: "10px", color: days <= 5 ? "#ef4444" : "#94a3b8" }}>{days} días</div>
                       </td>
                       <td align="center">
                         <span style={{ fontSize: "12px", fontWeight: "900", color: "#fbbf24" }}>{biz.clicks_wa || 0} / {biz.clicks_map || 0} / {biz.clicks_qr || 0}</span>
