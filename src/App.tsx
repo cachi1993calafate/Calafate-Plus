@@ -1,4 +1,4 @@
-```tsx
+tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
