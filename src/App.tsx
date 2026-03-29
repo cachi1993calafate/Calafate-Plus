@@ -483,6 +483,3 @@ export default function CalafatePlus() {
     </div>
   );
 }
-```
-
-Copiá todo eso, entrá a GitHub, abrí `src/App.tsx`, tocá el lápiz ✏️, seleccioná todo, borrá y pegá. Después **Commit changes** y en menos de un minuto se actualiza en Vercel.
