@@ -1,3 +1,4 @@
+```tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
@@ -29,16 +30,16 @@ type Business = {
 
 // ─── CATEGORÍAS ──────────────────────────────────────────────────────────────
 const CATEGORIAS = [
-  { id: "todos",            label: "Todos",            emoji: null,  icon: <LayoutGrid size={16} /> },
-  { id: "gastronomia",      label: "Gastronomía",      emoji: "🍽️",  icon: <Utensils size={16} /> },
-  { id: "compras",          label: "Compras",          emoji: "🛒",  icon: <ShoppingCart size={16} /> },
-  { id: "servicios",        label: "Servicios",        emoji: "🛠️",  icon: <Wrench size={16} /> },
-  { id: "panaderia",        label: "Panadería",        emoji: "🍞",  icon: null },
-  { id: "indumentaria",     label: "Indumentaria",     emoji: "👕",  icon: null },
-  { id: "emprendimientos",  label: "Emprendimientos",  emoji: "🚀",  icon: null },
-  { id: "construccion",     label: "Construcción",     emoji: "🏗️",  icon: null },
-  { id: "varios",           label: "Varios",           emoji: "🎯",  icon: null },
-  { id: "cuidado_personal", label: "Cuidado Personal", emoji: "💆",  icon: null },
+  { id: "todos",           label: "Todos",          emoji: null, icon: <LayoutGrid size={16} /> },
+  { id: "gastronomia",     label: "Gastronomía",    emoji: "🍽️", icon: <Utensils size={16} /> },
+  { id: "compras",         label: "Compras",        emoji: "🛒", icon: <ShoppingCart size={16} /> },
+  { id: "servicios",       label: "Servicios",      emoji: "🛠️", icon: <Wrench size={16} /> },
+  { id: "panaderia",       label: "Panadería",      emoji: "🍞", icon: null },
+  { id: "indumentaria",    label: "Indumentaria",   emoji: "👕", icon: null },
+  { id: "emprendimientos", label: "Emprendimientos",emoji: "🚀", icon: null },
+  { id: "construccion",    label: "Construcción",   emoji: "🏗️", icon: null },
+  { id: "varios",          label: "Varios",         emoji: "🎯", icon: null },
+  { id: "cuidado_personal",label: "Cuidado Personal",emoji: "💆",icon: null },
 ];
 
 const getCatEmoji = (catId: string): string => {
@@ -96,7 +97,7 @@ const extractIdFromQR = (text: string): string => {
   }
 };
 
-// ─── ESTILOS REUTILIZABLES ───────────────────────────────────────────────────
+// ─── ESTILOS ─────────────────────────────────────────────────────────────────
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "11px 14px",
@@ -122,25 +123,24 @@ const btnGreen: React.CSSProperties = {
 
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
 export default function CalafatePlus() {
-  const [businesses, setBusinesses]         = useState<Business[]>([]);
-  const [view, setView]                     = useState<"user" | "admin" | "login" | "scanner">("user");
-  const [isAdmin, setIsAdmin]               = useState(false);
-  const [searchTerm, setSearchTerm]         = useState("");
-  const [activeCat, setActiveCat]           = useState("todos");
-  const [selectedBizId, setSelectedBizId]   = useState<string | null>(null);
+  const [businesses, setBusinesses]       = useState<Business[]>([]);
+  const [view, setView]                   = useState<"user" | "admin" | "login" | "scanner">("user");
+  const [isAdmin, setIsAdmin]             = useState(false);
+  const [searchTerm, setSearchTerm]       = useState("");
+  const [activeCat, setActiveCat]         = useState("todos");
+  const [selectedBizId, setSelectedBizId] = useState<string | null>(null);
 
   const [loginUser, setLoginUser]   = useState("");
   const [loginPass, setLoginPass]   = useState("");
   const [loginError, setLoginError] = useState("");
 
-  const EMPTY_FORM = { name: "", phone: "", category: "gastronomia", lat: "", lng: "", discount: "10", promo_text: "" };
-  const [form, setForm]         = useState(EMPTY_FORM);
+  const EMPTY_FORM = { name: "", phone: "", category: "gastronomia", coords: "", discount: "10", promo_text: "" };
+  const [form, setForm]           = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
 
   const ADMIN_WA   = "2966694462";
   const ADMIN_PASS = "admin123";
 
-  // ── Carga inicial ────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchData();
     if (localStorage.getItem("admin_auth") === "true") setIsAdmin(true);
@@ -155,7 +155,6 @@ export default function CalafatePlus() {
     if (data) setBusinesses(data as Business[]);
   };
 
-  // ── Login ─────────────────────────────────────────────────────────────────────
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
@@ -168,16 +167,18 @@ export default function CalafatePlus() {
     }
   };
 
-  // ── Crear negocio ─────────────────────────────────────────────────────────────
   const createBusiness = async () => {
     setFormError("");
-    const lat = parseFloat(form.lat);
-    const lng = parseFloat(form.lng);
     const pct = parseInt(form.discount);
     if (!form.name.trim())                   return setFormError("El nombre es obligatorio");
     if (!form.phone.trim())                  return setFormError("El WhatsApp es obligatorio");
-    if (isNaN(lat) || isNaN(lng))            return setFormError("Coordenadas inválidas");
+    if (!form.coords.trim())                 return setFormError("Las coordenadas son obligatorias");
     if (isNaN(pct) || pct < 1 || pct > 100) return setFormError("Descuento entre 1 y 100");
+
+    const parts = form.coords.replace(/\s+/g, " ").split(/[\s,]+/);
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    if (isNaN(lat) || isNaN(lng)) return setFormError("Coordenadas inválidas. Ejemplo: -50.338, -72.263");
 
     const expires = new Date();
     expires.setDate(expires.getDate() + 30);
@@ -202,7 +203,6 @@ export default function CalafatePlus() {
     setForm(EMPTY_FORM);
   };
 
-  // ── Ajustar días ──────────────────────────────────────────────────────────────
   const adjustDays = async (id: string, days: number) => {
     const biz = businesses.find(b => b.id === id);
     if (!biz) return;
@@ -213,7 +213,6 @@ export default function CalafatePlus() {
     if (!error) setBusinesses(prev => prev.map(b => b.id === id ? { ...b, expires_at: newDate } : b));
   };
 
-  // ── Track click ───────────────────────────────────────────────────────────────
   const trackClick = async (id: string, type: "wa_clicks" | "map_clicks" | "qr_clicks") => {
     const biz = businesses.find(b => b.id === id);
     if (!biz) return;
@@ -222,14 +221,12 @@ export default function CalafatePlus() {
     setBusinesses(prev => prev.map(b => b.id === id ? { ...b, [type]: newVal } : b));
   };
 
-  // ── Borrar negocio ────────────────────────────────────────────────────────────
   const deleteBusiness = async (id: string) => {
     if (!confirm("¿Borrar este local? No se puede deshacer.")) return;
     const { error } = await supabase.from("businesses").delete().eq("id", id);
     if (!error) setBusinesses(prev => prev.filter(b => b.id !== id));
   };
 
-  // ── Filtro vista pública ──────────────────────────────────────────────────────
   const filteredBiz = useMemo(() => {
     return businesses.filter(b => {
       if (!b.is_active) return false;
@@ -240,12 +237,10 @@ export default function CalafatePlus() {
     });
   }, [businesses, searchTerm, activeCat]);
 
-  // ── Lista admin: menos días arriba ────────────────────────────────────────────
   const adminBiz = useMemo(() => {
     return [...businesses].sort((a, b) => getDaysLeft(a.expires_at) - getDaysLeft(b.expires_at));
   }, [businesses]);
 
-  // ── Scanner QR ────────────────────────────────────────────────────────────────
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
     if (view === "scanner" && selectedBizId) {
@@ -266,11 +261,9 @@ export default function CalafatePlus() {
     return () => { scanner?.clear().catch(() => {}); };
   }, [view, selectedBizId]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: "#010b14", color: "#fff", fontFamily: "sans-serif", maxWidth: "480px", margin: "0 auto" }}>
 
-      {/* ══ BANNER ══ */}
       <div style={{ position: "relative" }}>
         <img src="banner.png" alt="Calafate Plus" style={{ width: "100%", display: "block" }} />
         <div style={{ position: "absolute", top: "14px", left: "16px", right: "16px", display: "flex", justifyContent: "space-between" }}>
@@ -281,7 +274,6 @@ export default function CalafatePlus() {
         </div>
       </div>
 
-      {/* ══ LOGIN ══ */}
       {view === "login" && (
         <div style={{ padding: "40px 24px" }}>
           <form onSubmit={handleLogin} style={{ display: "grid", gap: "14px", maxWidth: "320px", margin: "0 auto" }}>
@@ -298,7 +290,6 @@ export default function CalafatePlus() {
         </div>
       )}
 
-      {/* ══ SCANNER ══ */}
       {view === "scanner" && (
         <div style={{ padding: "24px", textAlign: "center" }}>
           <h2 style={{ color: "#fbbf24" }}>ESCANEAR EN LOCAL</h2>
@@ -310,7 +301,6 @@ export default function CalafatePlus() {
         </div>
       )}
 
-      {/* ══ ADMIN ══ */}
       {view === "admin" && (
         <div style={{ padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -320,7 +310,6 @@ export default function CalafatePlus() {
               onClick={() => { setIsAdmin(false); localStorage.removeItem("admin_auth"); setView("user"); }} />
           </div>
 
-          {/* Formulario alta */}
           <div style={{ background: "#0a1929", padding: "20px", borderRadius: "20px", border: "1px solid #3b82f6", marginBottom: "30px" }}>
             <h3 style={{ color: "#fbbf24", marginTop: 0 }}>+ NUEVO COMERCIO</h3>
             <div style={{ display: "grid", gap: "10px" }}>
@@ -331,10 +320,7 @@ export default function CalafatePlus() {
                   <option key={c.id} value={c.id}>{c.emoji ? c.emoji + " " : ""}{c.label}</option>
                 ))}
               </select>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <input placeholder="Latitud (ej: -50.338)" value={form.lat} onChange={e => setForm({ ...form, lat: e.target.value })} style={inputStyle} />
-                <input placeholder="Longitud (ej: -72.263)" value={form.lng} onChange={e => setForm({ ...form, lng: e.target.value })} style={inputStyle} />
-              </div>
+              <input placeholder="Coordenadas (pegá desde Google Maps: -50.338, -72.263)" value={form.coords} onChange={e => setForm({ ...form, coords: e.target.value })} style={inputStyle} />
               <input placeholder="% Descuento (ej: 15)" type="number" min="1" max="100" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} style={inputStyle} />
               <input placeholder="Texto promo (ej: 12% en camperas)" value={form.promo_text} onChange={e => setForm({ ...form, promo_text: e.target.value })} style={inputStyle} />
               {formError && <p style={{ color: "#ef4444", margin: 0, fontSize: "13px" }}>{formError}</p>}
@@ -342,7 +328,6 @@ export default function CalafatePlus() {
             </div>
           </div>
 
-          {/* Lista admin */}
           {adminBiz.map(biz => {
             const days    = getDaysLeft(biz.expires_at);
             const expired = days <= 0;
@@ -367,13 +352,11 @@ export default function CalafatePlus() {
                     {expired ? "VENCIDO" : days + " días"}
                   </span>
                 </div>
-
                 <div style={{ fontSize: "12px", color: "#3b82f6", margin: "10px 0 8px 0", display: "flex", gap: "16px" }}>
-                  <span>💬 {biz.wa_clicks}</span>
-                  <span>📍 {biz.map_clicks}</span>
-                  <span>📷 {biz.qr_clicks}</span>
+                  <span>💬 WA: {biz.wa_clicks}</span>
+                  <span>📍 Mapa: {biz.map_clicks}</span>
+                  <span>📷 QR: {biz.qr_clicks}</span>
                 </div>
-
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "20px", alignItems: "center" }}>
                   <Bell size={20} color="#fbbf24" style={{ cursor: "pointer" }}
                     onClick={() => window.open(
@@ -391,11 +374,9 @@ export default function CalafatePlus() {
         </div>
       )}
 
-      {/* ══ VISTA USUARIO ══ */}
       {view === "user" && (
         <div style={{ padding: "0 16px 40px 16px" }}>
 
-          {/* Buscador */}
           <div style={{ position: "relative", margin: "20px 0 14px 0" }}>
             <Search size={18} style={{ position: "absolute", left: "14px", top: "13px", color: "#475569" }} />
             <input
@@ -406,7 +387,6 @@ export default function CalafatePlus() {
             />
           </div>
 
-          {/* Categorías */}
           <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "12px", scrollbarWidth: "none" }}>
             {CATEGORIAS.map(cat => (
               <button key={cat.id} onClick={() => setActiveCat(cat.id)}
@@ -423,7 +403,6 @@ export default function CalafatePlus() {
             ))}
           </div>
 
-          {/* Mapa */}
           <div style={{ height: "220px", borderRadius: "20px", overflow: "hidden", marginBottom: "20px", border: "1px solid #1e293b" }}>
             <MapContainer center={[-50.338, -72.263]} zoom={14} style={{ height: "100%", width: "100%" }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png" />
@@ -438,7 +417,6 @@ export default function CalafatePlus() {
             </MapContainer>
           </div>
 
-          {/* Banner contacto */}
           <div style={{
             background: "linear-gradient(135deg,#0a1929 0%,#1e293b 100%)",
             padding: "20px", borderRadius: "20px", marginBottom: "20px",
@@ -453,7 +431,6 @@ export default function CalafatePlus() {
             </button>
           </div>
 
-          {/* Lista comercios */}
           {filteredBiz.length === 0 && (
             <p style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>
               No hay comercios en esta categoría.
@@ -480,7 +457,6 @@ export default function CalafatePlus() {
                   </span>
                 </div>
               </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "14px" }}>
                 <button
                   onClick={() => {
@@ -507,3 +483,6 @@ export default function CalafatePlus() {
     </div>
   );
 }
+```
+
+Copiá todo eso, entrá a GitHub, abrí `src/App.tsx`, tocá el lápiz ✏️, seleccioná todo, borrá y pegá. Después **Commit changes** y en menos de un minuto se actualiza en Vercel.
